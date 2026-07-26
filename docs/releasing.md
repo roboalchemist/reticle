@@ -18,7 +18,7 @@ The two registry publications are external, non-transactional operations. If one
 
 ## Publish an existing GitHub release
 
-If a tag shipped before one or both registry credentials were configured, run the **Publish existing release to registries** workflow from the repository's Actions tab. Select the existing tag and either `marketplace`, `open-vsx`, or `both`.
+If a tag shipped before one or both registry credentials were configured, run the **Publish existing release to registries** workflow from the repository's Actions tab. Select the existing tag and either `marketplace`, `open-vsx`, or `both`. The `verify-only` target exercises the release download and digest check without contacting either registry.
 
 The workflow checks out the selected tag, derives the expected VSIX name from its `package.json`, downloads that asset from the existing GitHub release, and verifies the downloaded SHA-256 against GitHub's release-asset digest. It publishes that exact file and does not rebuild or replace the release. A missing credential is a hard failure in this manual workflow.
 

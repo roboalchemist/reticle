@@ -17,6 +17,7 @@ on:
           - both
           - marketplace
           - open-vsx
+          - verify-only
 
 permissions:
   contents: read
