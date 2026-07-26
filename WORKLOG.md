@@ -29,3 +29,11 @@
 - Passed the live provider test in 301 ms and the real VS Code extension-host test in 384 ms after warmup.
 - Added a managed-service helper and documented installation, health, metrics, dashboard, logs, lifecycle commands, configuration, and troubleshooting.
 - Confirmed from current Microsoft documentation that VS Code Marketplace packages are signed by the Marketplace after publication; extension authors do not need to purchase a separate developer certificate.
+
+## 2026-07-26 — Homebrew distribution and 16 GB test bed
+
+- Found that the M1 Mac mini test bed had adequate disk space but only 16 GB unified memory, while another user service already occupied port 8000.
+- Added a public-Homebrew installation path for the service manager and retained loopback-only binding; the mini validation uses port 8010 rather than disrupting the unrelated service.
+- Added conservative 16K context and Q4 paged-KV defaults plus a diagnostics command for memory-constrained Macs.
+- The first mini extension-host run timed out while several competing model runtimes were resident. Stopping those runtimes reduced swap use from 11.7 GB to 0.6 GB and made the 9B model stable, but direct warm requests still took about 5 seconds on the M1; documented 16 GB as a validation floor, not an everyday performance recommendation.
+- Added a Reticle-shaped warmup after service startup so one-time graph and request-path costs are paid during installation or restart instead of the first editor completion.

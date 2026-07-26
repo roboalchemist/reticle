@@ -2,16 +2,15 @@
 
 [MTPLX](https://github.com/youssofal/MTPLX) runs Qwen MTP models natively on Apple Silicon. Reticle's managed setup uses the verified 9B speed checkpoint, a loopback-only server, deterministic sampling, and a user LaunchAgent that restarts after crashes and login.
 
-Requirements are Apple Silicon, macOS 14 or newer, and at least 16 GB unified memory. The model download is about 9 GB.
+Requirements are Apple Silicon, macOS 14 or newer, and at least 16 GB unified memory. The model download is about 9 GB. Treat 16 GB as a functional validation floor rather than a real-time recommendation: MTPLX warns below 48 GB and performs a dynamic memory preflight, and an M1 with 16 GB remained much slower than a high-memory MacBook Pro even after competing model servers were stopped. Use at least 32 GB for a practical everyday setup.
 
 ## Managed install
 
-Clone Reticle, then run the service helper:
+Install the public Homebrew package, then run the service helper:
 
 ```bash
-git clone https://github.com/roboalchemist/reticle.git
-cd reticle
-scripts/mtplx-service install
+brew install roboalchemist/tap/reticle-mtplx
+reticle-mtplx install
 ```
 
 The helper:
@@ -20,21 +19,24 @@ The helper:
 2. downloads `Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed`;
 3. creates `~/Library/LaunchAgents/io.github.roboalchemist.reticle.mtplx.plist`;
 4. starts MTPLX on `127.0.0.1:8000`; and
-5. waits until `GET /health` succeeds.
+5. waits until `GET /health` succeeds and runs a Reticle-shaped FIM warmup.
 
-It does not use `sudo`, expose the server to the LAN, or enable forced fan control. Set `MTPLX_MODEL`, `MTPLX_PORT`, or `MTPLX_PROFILE` before `install` to override the defaults.
+It does not use `sudo`, expose the server to the LAN, or enable forced fan control. It defaults to a 16K context window and Q4 paged KV cache so the verified 9B model can run on memory-constrained Macs without altering the model weights. Set `MTPLX_MODEL`, `MTPLX_PORT`, `MTPLX_PROFILE`, `MTPLX_CONTEXT_WINDOW`, or `MTPLX_KV_QUANTIZATION` before `install` to override the defaults.
+
+To run directly from a source checkout instead, replace `reticle-mtplx` in the examples with `scripts/mtplx-service`.
 
 ## Monitor and operate
 
 ```bash
-scripts/mtplx-service status
-scripts/mtplx-service health
-scripts/mtplx-service monitor
-scripts/mtplx-service dashboard
-scripts/mtplx-service logs
-scripts/mtplx-service restart
-scripts/mtplx-service stop
-scripts/mtplx-service start
+reticle-mtplx status
+reticle-mtplx health
+reticle-mtplx monitor
+reticle-mtplx dashboard
+reticle-mtplx logs
+reticle-mtplx doctor
+reticle-mtplx restart
+reticle-mtplx stop
+reticle-mtplx start
 ```
 
 `status` gives a compact launchd and health summary. `health` prints the complete server report. `monitor` uses MTPLX's live `/metrics` view, and `dashboard` opens the local dashboard. Logs are stored under `~/.mtplx/logs/`.
@@ -42,7 +44,7 @@ scripts/mtplx-service start
 To remove only the managed service:
 
 ```bash
-scripts/mtplx-service uninstall
+reticle-mtplx uninstall
 ```
 
 Uninstalling preserves MTPLX itself, downloaded models, its session cache, and logs.
@@ -93,8 +95,9 @@ Keep `reticle.multiFileContext` off until basic completions work. MTPLX's dashbo
 
 ## Troubleshooting
 
-- **Service will not start:** run `scripts/mtplx-service logs`, then `/opt/homebrew/bin/mtplx doctor --deep`.
+- **Service will not start:** run `reticle-mtplx logs`, then `reticle-mtplx doctor`.
 - **`fimFormat` is `openai`:** MTPLX ignores the separate suffix and behaves as a continuation server. Set it to `qwen`.
 - **Wrong model ID:** use `curl http://127.0.0.1:8000/v1/models`; the served ID differs from the Hugging Face repository name.
-- **First request is slow:** wait for `scripts/mtplx-service status` to show a successful warmup before testing.
-- **Port 8000 is occupied:** reinstall with a free loopback port, for example `MTPLX_PORT=8010 scripts/mtplx-service install`, and use the same port in Reticle.
+- **First request is slow:** `install`, `start`, and `restart` warm both MTPLX and Reticle's FIM request shape. Wait for the command to finish and `reticle-mtplx status` to show a successful warmup before testing.
+- **Port 8000 is occupied:** reinstall with a free loopback port, for example `MTPLX_PORT=8010 reticle-mtplx install`, and use the same port in Reticle.
+- **Memory preflight fails or latency varies wildly:** stop other local-model servers and large applications, keep the default 16K context and Q4 KV cache, and retry. Do not bypass MTPLX's memory guard.
