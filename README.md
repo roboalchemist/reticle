@@ -1,18 +1,40 @@
 # Reticle
 
-Reticle is BYOK fill-in-the-middle (FIM) ghost text for VS Code. It calls your OpenAI-compatible `POST /v1/completions` endpoint directly—no account, gateway process, or telemetry.
+Reticle is BYOK fill-in-the-middle (FIM) ghost text for VS Code. It calls your OpenAI-compatible `POST /v1/completions` endpoint directly—no hosted account or telemetry.
 
-The server must honor both `prompt` (code before the cursor) and `suffix` (code after it), and the selected model must actually support FIM. Chat-only models are not compatible even when their server implements an OpenAI-shaped API.
+The selected model must actually support FIM. Reticle can send a separate OpenAI `suffix` or embed Qwen PSM special tokens for plain-completion servers such as MTPLX. Chat-only models are not compatible even when their server implements an OpenAI-shaped API.
 
 ## Install
 
-Download `reticle-0.1.0.vsix` from the [latest GitHub release](https://github.com/roboalchemist/reticle/releases/latest), then install it from VS Code's **Extensions: Install from VSIX...** command or the terminal:
+Install `roboalchemist.reticle` from the VS Code Marketplace or Open VSX. You can also download the VSIX from the [latest GitHub release](https://github.com/roboalchemist/reticle/releases/latest), then install it from VS Code's **Extensions: Install from VSIX...** command or the terminal:
 
 ```bash
-code --install-extension reticle-0.1.0.vsix
+code --install-extension reticle-0.2.0.vsix
 ```
 
-Registry listings will also be available under `roboalchemist.reticle` on the VS Code Marketplace and Open VSX after publisher verification is complete.
+## Quick start with MTPLX
+
+On an Apple Silicon Mac with at least 16 GB of unified memory:
+
+```bash
+git clone https://github.com/roboalchemist/reticle.git
+cd reticle
+scripts/mtplx-service install
+scripts/mtplx-service status
+```
+
+Then configure VS Code:
+
+```jsonc
+{
+  "reticle.baseURL": "http://127.0.0.1:8000/v1",
+  "reticle.model": "mtplx-qwen35-9b-optimized-speed",
+  "reticle.fimFormat": "qwen",
+  "reticle.maxTokens": 64,
+}
+```
+
+Run **Reticle: Test Autocomplete Endpoint**. See the [complete MTPLX guide](docs/providers/mtplx.md) for monitoring, logs, dashboard, restart, custom models, and uninstall.
 
 ## Quick start with Ollama
 
@@ -81,6 +103,7 @@ Compatible output has a `choices[0].text` insertion like `a + b`. Once that pass
 | `reticle.model`             |                      empty | Exact model ID from the server's `/v1/models` response.                                         |
 | `reticle.apiKey`            |                      empty | Optional on loopback; required for remote endpoints.                                            |
 | `reticle.extraHeaders`      |                       `{}` | Additional string-valued request headers.                                                       |
+| `reticle.fimFormat`         |                   `openai` | `openai` sends a separate suffix; `qwen` embeds Qwen PSM markers for plain-completion servers.  |
 | `reticle.maxTokens`         |                      `256` | Maximum generated tokens (1–2048).                                                              |
 | `reticle.temperature`       |                        `0` | Sampling temperature (0–2).                                                                     |
 | `reticle.debounceMs`        |                      `100` | Automatic-request delay (75–150 ms).                                                            |
@@ -94,6 +117,7 @@ Reticle requires HTTPS and an API key for non-loopback endpoints. It never logs 
 ## Provider guides
 
 - [Ollama](docs/providers/ollama.md) — recommended first setup; its OpenAI compatibility documents `suffix`.
+- [MTPLX](docs/providers/mtplx.md) — managed Apple Silicon service with health, metrics, dashboard, and Qwen PSM transport.
 - [llama.cpp](docs/providers/llama-cpp.md) — excellent FIM runtime, with an important `/infill` versus `/v1/completions` caveat.
 - [OMLX](docs/providers/omlx.md) — Apple Silicon serving and the archive's fastest Mac-local model result.
 - [LM Studio](docs/providers/lm-studio.md) — GUI/headless local server; verify suffix mapping for the exact version and model.
@@ -124,8 +148,17 @@ The live integration test is explicit and loopback-only:
 
 ```bash
 RETICLE_INTEGRATION=1 \
-RETICLE_INTEGRATION_MODEL=qwen2.5-coder:1.5b-base \
+RETICLE_INTEGRATION_MODEL=mtplx-qwen35-9b-optimized-speed \
+RETICLE_INTEGRATION_FIM_FORMAT=qwen \
 npm run test:integration
+```
+
+Run the same live path inside a real VS Code Extension Development Host:
+
+```bash
+RETICLE_E2E_LIVE=1 \
+RETICLE_INTEGRATION_MODEL=mtplx-qwen35-9b-optimized-speed \
+npm run test:e2e
 ```
 
 ## License

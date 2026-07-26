@@ -9,6 +9,7 @@ const settings: Record<string, unknown> = {
   baseURL: "http://localhost:8001/v1",
   debounceMs: 75,
   extraHeaders: {},
+  fimFormat: "openai",
   maxTokens: 16,
   model: "fim-model",
   temperature: 0,

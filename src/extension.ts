@@ -7,7 +7,16 @@ import { showProbeVerdict } from "./ui/warnings.js";
 import { StatusBarController } from "./ui/statusBar.js";
 import { ContextEngine } from "./context/ContextEngine.js";
 
-export function activate(context: vscode.ExtensionContext): void {
+export interface ReticleExtensionApi {
+  provideInlineCompletionItems(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    inlineContext: vscode.InlineCompletionContext,
+    token: vscode.CancellationToken,
+  ): ReturnType<InlineProvider["provideInlineCompletionItems"]>;
+}
+
+export function activate(context: vscode.ExtensionContext): ReticleExtensionApi {
   const selector: vscode.DocumentSelector = [{ scheme: "file" }, { scheme: "untitled" }];
   const output = vscode.window.createOutputChannel("Reticle", { log: true });
   const configuration = vscode.workspace.getConfiguration("reticle");
@@ -115,7 +124,7 @@ export function activate(context: vscode.ExtensionContext): void {
           contextEngine.clear();
         }
         if (
-          ["baseURL", "model", "apiKey", "extraHeaders"].some((setting) =>
+          ["baseURL", "model", "apiKey", "extraHeaders", "fimFormat"].some((setting) =>
             event.affectsConfiguration(`reticle.${setting}`),
           )
         ) {
@@ -131,6 +140,11 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
   );
+
+  return {
+    provideInlineCompletionItems: (document, position, inlineContext, token) =>
+      provider.provideInlineCompletionItems(document, position, inlineContext, token),
+  };
 }
 
 export function deactivate(): void {

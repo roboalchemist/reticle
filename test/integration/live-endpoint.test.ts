@@ -9,6 +9,10 @@ const { settings, showWarningMessage } = vi.hoisted(() => ({
     debounceMs: 75,
     enableAutoTrigger: true,
     extraHeaders: {},
+    fimFormat:
+      process.env.RETICLE_INTEGRATION_FIM_FORMAT === "qwen"
+        ? ("qwen" as const)
+        : ("openai" as const),
     languageAllowlist: [],
     languageDenylist: [],
     maxTokens: 64,
@@ -61,10 +65,10 @@ it("produces a clean provider insertion from a live OpenAI-compatible FIM endpoi
     fetch: globalThis.fetch,
     output: { appendLine: (line) => output.push(line) },
   });
-  const prefix = "function add(a, b) {\n  return ";
-  const suffix = "\n}\n";
+  const prefix = "function select(user: User) {\n  const value = user.";
+  const suffix = ";\n  return value;\n}\ninterface User { suffixOnlyIdentifier: string }\n";
   const text = `${prefix}${suffix}`;
-  const position = { line: 1, character: 9 };
+  const position = { line: 1, character: "  const value = user.".length };
   const document = {
     getText: () => text,
     offsetAt: () => prefix.length,
@@ -90,7 +94,7 @@ it("produces a clean provider insertion from a live OpenAI-compatible FIM endpoi
     if (typeof insertion !== "string") {
       throw new TypeError("Expected the provider to return a plain string insertion.");
     }
-    expect(insertion).toMatch(/^a \+ b;?$/u);
+    expect(insertion).toMatch(/^suffixOnlyIdentifier;?$/u);
   } finally {
     provider.dispose();
   }

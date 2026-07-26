@@ -1,0 +1,299 @@
+#!/bin/sh
+
+set -eu
+
+service_label="io.github.roboalchemist.reticle.mtplx"
+service_uid="$(id -u)"
+service_domain="gui/${service_uid}"
+service_target="${service_domain}/${service_label}"
+plist_path="${HOME}/Library/LaunchAgents/${service_label}.plist"
+log_dir="${MTPLX_LOG_DIR:-${HOME}/.mtplx/logs}"
+stdout_log="${log_dir}/reticle-mtplx.log"
+stderr_log="${log_dir}/reticle-mtplx.error.log"
+model="${MTPLX_MODEL:-Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed}"
+port="${MTPLX_PORT:-8000}"
+profile="${MTPLX_PROFILE:-sustained}"
+base_url="http://127.0.0.1:${port}"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/mtplx-service COMMAND
+
+Commands:
+  install     Install MTPLX/model, create the user LaunchAgent, and wait for health
+  start       Load the previously installed LaunchAgent
+  stop        Unload the LaunchAgent without deleting it
+  restart     Restart the loaded LaunchAgent
+  status      Show launchd state and the MTPLX health response
+  health      Print GET /health
+  monitor     Watch compact GET /metrics output until interrupted
+  dashboard   Open the MTPLX dashboard
+  logs        Follow service stdout and stderr
+  uninstall   Unload the service and remove its plist; models and caches are preserved
+
+Environment:
+  MTPLX_MODEL          Hugging Face model ID or local model path
+  MTPLX_PORT           Loopback port (default: 8000)
+  MTPLX_PROFILE        MTPLX runtime profile (default: sustained)
+  MTPLX_BIN            Absolute mtplx executable override
+  MTPLX_LOG_DIR        Log directory (default: ~/.mtplx/logs)
+  MTPLX_SKIP_DOWNLOAD  Set to 1 when the selected model is already cached
+EOF
+}
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+validate_port() {
+  case "${port}" in
+    ''|*[!0-9]*) fail "MTPLX_PORT must be an integer from 1 to 65535" ;;
+  esac
+  [ "${port}" -ge 1 ] && [ "${port}" -le 65535 ] ||
+    fail "MTPLX_PORT must be an integer from 1 to 65535"
+}
+
+resolve_mtplx() {
+  if [ -n "${MTPLX_BIN:-}" ]; then
+    [ -x "${MTPLX_BIN}" ] || fail "MTPLX_BIN is not executable: ${MTPLX_BIN}"
+    printf '%s\n' "${MTPLX_BIN}"
+    return
+  fi
+  if command -v mtplx >/dev/null 2>&1; then
+    command -v mtplx
+    return
+  fi
+  for candidate in /opt/homebrew/bin/mtplx /usr/local/bin/mtplx; do
+    if [ -x "${candidate}" ]; then
+      printf '%s\n' "${candidate}"
+      return
+    fi
+  done
+  return 1
+}
+
+install_mtplx() {
+  if resolve_mtplx >/dev/null 2>&1; then
+    return
+  fi
+  command -v brew >/dev/null 2>&1 ||
+    fail "Homebrew is required. Install it from https://brew.sh, then retry."
+  brew tap youssofal/mtplx
+  brew install youssofal/mtplx/mtplx
+}
+
+xml_escape() {
+  printf '%s' "$1" |
+    sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+      -e 's/"/\&quot;/g' -e "s/'/\&apos;/g"
+}
+
+write_plist() {
+  mtplx_path="$1"
+  mkdir -p "$(dirname "${plist_path}")" "${log_dir}"
+  plist_tmp="$(mktemp "${plist_path}.XXXXXX")"
+  escaped_bin="$(xml_escape "${mtplx_path}")"
+  escaped_model="$(xml_escape "${model}")"
+  escaped_profile="$(xml_escape "${profile}")"
+  escaped_stdout="$(xml_escape "${stdout_log}")"
+  escaped_stderr="$(xml_escape "${stderr_log}")"
+  escaped_path="$(xml_escape "$(dirname "${mtplx_path}"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")"
+  cat >"${plist_tmp}" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${service_label}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${escaped_bin}</string>
+    <string>serve</string>
+    <string>--model</string>
+    <string>${escaped_model}</string>
+    <string>--profile</string>
+    <string>${escaped_profile}</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>${port}</string>
+    <string>--batching-preset</string>
+    <string>latency</string>
+    <string>--ssd-session-cache</string>
+    <string>on</string>
+    <string>--default-temperature</string>
+    <string>0</string>
+    <string>--default-top-p</string>
+    <string>1</string>
+    <string>--reasoning</string>
+    <string>off</string>
+    <string>--reasoning-parser</string>
+    <string>none</string>
+    <string>--max-tokens</string>
+    <string>256</string>
+    <string>--warmup-tokens</string>
+    <string>8</string>
+    <string>--no-stats-footer</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>${escaped_path}</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>${escaped_stdout}</string>
+  <key>StandardErrorPath</key>
+  <string>${escaped_stderr}</string>
+</dict>
+</plist>
+EOF
+  plutil -lint "${plist_tmp}" >/dev/null
+  chmod 600 "${plist_tmp}"
+  mv "${plist_tmp}" "${plist_path}"
+}
+
+service_loaded() {
+  launchctl print "${service_target}" >/dev/null 2>&1
+}
+
+load_service() {
+  [ -f "${plist_path}" ] || fail "service is not installed: ${plist_path}"
+  if service_loaded; then
+    launchctl kickstart -k "${service_target}"
+  else
+    launchctl bootstrap "${service_domain}" "${plist_path}"
+  fi
+}
+
+unload_service() {
+  if service_loaded; then
+    launchctl bootout "${service_target}"
+  fi
+}
+
+wait_for_health() {
+  attempt=0
+  while [ "${attempt}" -lt 300 ]; do
+    if curl -fsS --max-time 2 "${base_url}/health" >/dev/null 2>&1; then
+      printf 'MTPLX is healthy at %s\n' "${base_url}"
+      return
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+  done
+  printf 'MTPLX did not become healthy; inspect %s and %s\n' "${stdout_log}" "${stderr_log}" >&2
+  exit 1
+}
+
+print_json() {
+  if command -v jq >/dev/null 2>&1; then
+    jq .
+  else
+    cat
+  fi
+}
+
+print_status_json() {
+  if command -v jq >/dev/null 2>&1; then
+    jq '{
+      ok,
+      model,
+      generation_mode,
+      mtp_enabled,
+      profile: .profile.name,
+      warmup: {
+        ran: .warmup.ran,
+        error: .warmup.error,
+        tok_s: .warmup.tok_s
+      },
+      load_time_s,
+      requests_completed,
+      idle_seconds,
+      session_cache: {
+        mode: .ssd_session_cache.mode,
+        entries: .ssd_session_cache.entries,
+        bytes: .ssd_session_cache.bytes
+      }
+    }'
+  else
+    cat
+  fi
+}
+
+validate_port
+command="${1:-}"
+case "${command}" in
+  install)
+    install_mtplx
+    mtplx_path="$(resolve_mtplx)"
+    if [ "${MTPLX_SKIP_DOWNLOAD:-0}" != "1" ]; then
+      "${mtplx_path}" setup --model "${model}" --download --force
+    fi
+    unload_service
+    write_plist "${mtplx_path}"
+    load_service
+    wait_for_health
+    ;;
+  start)
+    load_service
+    wait_for_health
+    ;;
+  stop)
+    unload_service
+    printf 'MTPLX service stopped; plist preserved at %s\n' "${plist_path}"
+    ;;
+  restart)
+    load_service
+    wait_for_health
+    ;;
+  status)
+    if service_loaded; then
+      printf 'launchd: loaded (%s)\n' "${service_target}"
+    else
+      printf 'launchd: not loaded (%s)\n' "${service_target}"
+    fi
+    curl -fsS --max-time 5 "${base_url}/health" | print_status_json
+    ;;
+  health)
+    curl -fsS --max-time 5 "${base_url}/health" | print_json
+    ;;
+  monitor)
+    mtplx_path="$(resolve_mtplx)" || fail "mtplx executable not found"
+    exec "${mtplx_path}" metrics watch --url "${base_url}" --interval "${MTPLX_MONITOR_INTERVAL:-1}"
+    ;;
+  dashboard)
+    open "${base_url}/"
+    ;;
+  logs)
+    mkdir -p "${log_dir}"
+    touch "${stdout_log}" "${stderr_log}"
+    exec tail -n 100 -F "${stdout_log}" "${stderr_log}"
+    ;;
+  uninstall)
+    unload_service
+    if [ -f "${plist_path}" ]; then
+      rm -f "${plist_path}"
+      printf 'Removed %s\n' "${plist_path}"
+    fi
+    printf 'MTPLX itself, downloaded models, session cache, and logs were preserved.\n'
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
