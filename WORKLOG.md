@@ -17,3 +17,4 @@
 - Revalidated the public build with 52 unit tests, four VS Code extension-host E2E tests, type checking, linting, formatting, and VSIX packaging.
 - Audited the public snapshot and packaged VSIX for credentials, private domains, and internal experiment names before publication.
 - Published the signed `v0.1.0` tag and its installable VSIX through the public GitHub release workflow.
+- Made release creation idempotent so rerunning a tag safely replaces its VSIX before attempting newly configured registry publications.
