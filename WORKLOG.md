@@ -18,3 +18,14 @@
 - Audited the public snapshot and packaged VSIX for credentials, private domains, and internal experiment names before publication.
 - Published the signed `v0.1.0` tag and its installable VSIX through the public GitHub release workflow.
 - Made release creation idempotent so rerunning a tag safely replaces its VSIX before attempting newly configured registry publications.
+
+## 2026-07-26 — MTPLX integration and managed service
+
+- Recovered the archived MTPLX experiments and found that the old `a + b` probe could pass even when a server silently ignored `suffix`.
+- Confirmed both archived MTPLX 2.0.2 and current 2.3.0 accept but ignore the OpenAI `suffix` field on `/v1/completions`.
+- Added an explicit Qwen PSM transport so Reticle embeds prefix and suffix with the checkpoint's registered FIM special tokens.
+- Designed a suffix-dependent probe where the only valid field name is declared after the cursor. A request with the suffix returned `suffixOnlyIdentifier`; the same prefix without its suffix returned an unrelated continuation.
+- Installed MTPLX 2.3.0 and the verified Qwen3.5 9B Optimized Speed model on an Apple M3 Max, then created and exercised a crash-restarting user LaunchAgent.
+- Passed the live provider test in 301 ms and the real VS Code extension-host test in 384 ms after warmup.
+- Added a managed-service helper and documented installation, health, metrics, dashboard, logs, lifecycle commands, configuration, and troubleshooting.
+- Confirmed from current Microsoft documentation that VS Code Marketplace packages are signed by the Marketplace after publication; extension authors do not need to purchase a separate developer certificate.

@@ -14,6 +14,7 @@ const settings: ReticleSettings = {
   debounceMs: 100,
   enableAutoTrigger: true,
   extraHeaders: {},
+  fimFormat: "openai",
   languageAllowlist: [],
   languageDenylist: [],
   maxTokens: 256,
@@ -24,7 +25,7 @@ const settings: ReticleSettings = {
 
 describe("FIM endpoint probe", () => {
   it("classifies insertion, prose, fenced, empty, and unexpected responses", () => {
-    expect(classifyProbeResponse(" a + b;\n")).toBe("insertion");
+    expect(classifyProbeResponse(" suffixOnlyIdentifier;\n")).toBe("insertion");
     expect(classifyProbeResponse("Here's the corrected version of the function.")).toBe("prose");
     expect(
       classifyProbeResponse(
@@ -33,11 +34,17 @@ describe("FIM endpoint probe", () => {
     ).toBe("prose");
     expect(classifyProbeResponse("You're close, but that formula is incorrect.")).toBe("prose");
     expect(classifyProbeResponse("```javascript\na + b\n```")).toBe("fenced");
-    expect(classifyProbeResponse("a + b\n~~~javascript\nfull rewrite\n~~~")).toBe("fenced");
-    expect(classifyProbeResponse("a + b\nExplanation: this adds the numbers.")).toBe("prose");
-    expect(classifyProbeResponse("a + b\nanything else")).toBe("unexpected");
-    expect(classifyProbeResponse("a + b\nconst unrelated = true")).toBe("unexpected");
-    expect(classifyProbeResponse("a + b;\n// trailing output")).toBe("unexpected");
+    expect(classifyProbeResponse("suffixOnlyIdentifier\n~~~javascript\nfull rewrite\n~~~")).toBe(
+      "fenced",
+    );
+    expect(
+      classifyProbeResponse("suffixOnlyIdentifier\nExplanation: this uses the identifier."),
+    ).toBe("prose");
+    expect(classifyProbeResponse("suffixOnlyIdentifier\nanything else")).toBe("unexpected");
+    expect(classifyProbeResponse("suffixOnlyIdentifier\nconst unrelated = true")).toBe(
+      "unexpected",
+    );
+    expect(classifyProbeResponse("suffixOnlyIdentifier;\n// trailing output")).toBe("unexpected");
     expect(classifyProbeResponse("  ")).toBe("empty");
     expect(classifyProbeResponse("a - b")).toBe("unexpected");
   });
@@ -52,7 +59,7 @@ describe("FIM endpoint probe", () => {
       request = JSON.parse(init.body) as Record<string, unknown>;
       headers = new Headers(init?.headers);
       return Promise.resolve(
-        new Response('{"choices":[{"text":"a + b"}]}', {
+        new Response('{"choices":[{"text":"suffixOnlyIdentifier"}]}', {
           status: 200,
           headers: { "content-type": "application/json" },
         }),

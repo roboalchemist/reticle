@@ -29,6 +29,7 @@ describe("Reticle settings", () => {
     expect(settings.model).toBe("qwen-fim");
     expect(settings.languageAllowlist).toEqual(["typescript"]);
     expect(settings.extraHeaders).toEqual({ "x-provider": "yes" });
+    expect(settings.fimFormat).toBe("openai");
     expect(settings.debounceMs).toBe(75);
     expect(settings.maxTokens).toBe(256);
   });
@@ -85,6 +86,9 @@ describe("Reticle settings", () => {
     );
     expect(() => readSettings(configuration({ model: "fim", extraHeaders: { bad: 42 } }))).toThrow(
       "every reticle.extraHeaders value must be a string",
+    );
+    expect(() => readSettings(configuration({ model: "fim", fimFormat: "unknown" }))).toThrow(
+      'reticle.fimFormat must be "openai" or "qwen"',
     );
   });
 });

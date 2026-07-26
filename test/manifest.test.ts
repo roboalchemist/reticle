@@ -57,6 +57,7 @@ describe("extension manifest", () => {
         "debounceMs",
         "enableAutoTrigger",
         "extraHeaders",
+        "fimFormat",
         "languageAllowlist",
         "languageDenylist",
         "maxTokens",

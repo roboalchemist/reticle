@@ -4,12 +4,15 @@ export interface ConfigurationReader {
   get<T>(section: string, defaultValue: T): T;
 }
 
+export type FimFormat = "openai" | "qwen";
+
 export interface ReticleSettings {
   apiKey: string;
   baseURL: string;
   debounceMs: number;
   enableAutoTrigger: boolean;
   extraHeaders: Record<string, string>;
+  fimFormat: FimFormat;
   languageAllowlist: string[];
   languageDenylist: string[];
   maxTokens: number;
@@ -58,6 +61,14 @@ function booleanValue(
   return value;
 }
 
+function fimFormatValue(configuration: ConfigurationReader): FimFormat {
+  const value = stringValue(configuration, "fimFormat", "openai");
+  if (value !== "openai" && value !== "qwen") {
+    throw new SettingsError('Reticle: reticle.fimFormat must be "openai" or "qwen".');
+  }
+  return value;
+}
+
 function stringList(value: unknown, section: string): string[] {
   if (!Array.isArray(value)) {
     throw new SettingsError(`Reticle: reticle.${section} must be an array of language IDs.`);
@@ -96,6 +107,7 @@ export function readSettings(configuration: ConfigurationReader): ReticleSetting
     debounceMs: clampDebounceMs(numberValue(configuration, "debounceMs", 100)),
     enableAutoTrigger: booleanValue(configuration, "enableAutoTrigger", true),
     extraHeaders: stringHeaders(configuration.get<unknown>("extraHeaders", {})),
+    fimFormat: fimFormatValue(configuration),
     languageAllowlist: stringList(
       configuration.get<unknown>("languageAllowlist", []),
       "languageAllowlist",

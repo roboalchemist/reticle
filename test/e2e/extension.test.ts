@@ -11,6 +11,7 @@ const expectedSettingIds = [
   "reticle.debounceMs",
   "reticle.enableAutoTrigger",
   "reticle.extraHeaders",
+  "reticle.fimFormat",
   "reticle.languageAllowlist",
   "reticle.languageDenylist",
   "reticle.maxTokens",
@@ -25,6 +26,15 @@ interface ExtensionManifest {
       properties?: Record<string, { default?: unknown; scope?: string }>;
     };
   };
+}
+
+interface ReticleExtensionApi {
+  provideInlineCompletionItems(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    context: vscode.InlineCompletionContext,
+    token: vscode.CancellationToken,
+  ): Promise<vscode.InlineCompletionList>;
 }
 
 let resource: vscode.Uri;
@@ -154,5 +164,53 @@ suite("Reticle extension host", () => {
       folder: false,
       effective: false,
     });
+  });
+
+  test("returns a suffix-dependent insertion from the live MTPLX endpoint", async function () {
+    if (process.env.RETICLE_E2E_LIVE !== "1") {
+      this.skip();
+    }
+
+    const extension = vscode.extensions.getExtension<ReticleExtensionApi>(extensionId);
+    assert.ok(extension, `${extensionId} must be loaded in the Extension Development Host`);
+    const api = await extension.activate();
+    const liveSettings = {
+      baseURL: process.env.RETICLE_INTEGRATION_BASE_URL ?? "http://127.0.0.1:8000/v1",
+      fimFormat: "qwen",
+      maxTokens: 64,
+      model: process.env.RETICLE_INTEGRATION_MODEL ?? "mtplx-qwen35-9b-optimized-speed",
+    } as const;
+    const globalConfiguration = vscode.workspace.getConfiguration("reticle");
+    const previous = Object.fromEntries(
+      Object.keys(liveSettings).map((key) => [key, globalConfiguration.inspect(key)?.globalValue]),
+    );
+
+    try {
+      for (const [key, value] of Object.entries(liveSettings)) {
+        await globalConfiguration.update(key, value, vscode.ConfigurationTarget.Global);
+      }
+      const prefix = "function select(user: User) {\n  const value = user.";
+      const suffix = ";\n  return value;\n}\ninterface User { suffixOnlyIdentifier: string }\n";
+      const document = await vscode.workspace.openTextDocument({
+        content: `${prefix}${suffix}`,
+        language: "typescript",
+      });
+      const position = document.positionAt(prefix.length);
+      const result = await api.provideInlineCompletionItems(
+        document,
+        position,
+        {
+          triggerKind: vscode.InlineCompletionTriggerKind.Invoke,
+          selectedCompletionInfo: undefined,
+        },
+        new vscode.CancellationTokenSource().token,
+      );
+      assert.equal(result.items.length, 1);
+      assert.equal(result.items[0]?.insertText, "suffixOnlyIdentifier");
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        await globalConfiguration.update(key, value, vscode.ConfigurationTarget.Global);
+      }
+    }
   });
 });

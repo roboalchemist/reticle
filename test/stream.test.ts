@@ -4,6 +4,7 @@ import { buildCompletionsRequest } from "../src/completion/request.js";
 import { parseSseData, streamCompletion } from "../src/completion/stream.js";
 
 const body = buildCompletionsRequest("return ", "\n}", "model", {
+  fimFormat: "openai",
   maxTokens: 16,
   temperature: 0,
 });

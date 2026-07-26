@@ -3,8 +3,9 @@ import { buildCompletionHeaders, createSessionId } from "../completion/session.j
 import { streamCompletion, type Fetch } from "../completion/stream.js";
 import type { ReticleSettings } from "./settings.js";
 
-export const PROBE_PREFIX = "function add(a, b) {\n  return ";
-export const PROBE_SUFFIX = "\n}\n";
+export const PROBE_PREFIX = "function select(user: User) {\n  const value = user.";
+export const PROBE_SUFFIX =
+  ";\n  return value;\n}\ninterface User { suffixOnlyIdentifier: string }\n";
 
 export type ProbeClassification = "insertion" | "prose" | "fenced" | "empty" | "unexpected";
 
@@ -29,7 +30,7 @@ export function classifyProbeResponse(value: string): ProbeClassification {
     return unsupported;
   }
   const firstLine = trimmed.split(/\r?\n/, 1)[0]?.trim() ?? "";
-  if (/^a\s*\+\s*b\s*;?$/.test(firstLine)) {
+  if (/^suffixOnlyIdentifier\s*;?$/.test(firstLine)) {
     const remainder = trimmed.slice(trimmed.indexOf(firstLine) + firstLine.length).trim();
     if (!remainder || /^}/.test(remainder)) {
       return "insertion";
@@ -59,6 +60,7 @@ export async function probeEndpoint(
   const controller = options.signal ? undefined : new AbortController();
   const signal = options.signal ?? controller!.signal;
   const body = buildCompletionsRequest(PROBE_PREFIX, PROBE_SUFFIX, settings.model, {
+    fimFormat: settings.fimFormat,
     maxTokens: Math.min(settings.maxTokens, 64),
     temperature: 0,
   });
