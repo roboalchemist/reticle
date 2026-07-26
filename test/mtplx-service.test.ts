@@ -27,6 +27,7 @@ describe("MTPLX service helper", () => {
     expect(result.stdout).toContain("Usage: reticle-mtplx COMMAND");
     expect(result.stdout).toContain("MTPLX_CONTEXT_WINDOW");
     expect(result.stdout).toContain("MTPLX_KV_QUANTIZATION");
+    expect(result.stdout).toContain("MTPLX_SKIP_FIM_WARMUP");
     expect(result.stdout).toContain("doctor");
   });
 

@@ -44,6 +44,7 @@ Environment:
   MTPLX_BIN            Absolute mtplx executable override
   MTPLX_LOG_DIR        Log directory (default: ~/.mtplx/logs)
   MTPLX_SKIP_DOWNLOAD  Set to 1 when the selected model is already cached
+  MTPLX_SKIP_FIM_WARMUP Set to 1 to skip the Reticle-shaped warmup request
 EOF
 }
 
@@ -208,6 +209,7 @@ load_service() {
 unload_service() {
   if service_loaded; then
     launchctl bootout "${service_target}"
+    sleep 1
   fi
 }
 
@@ -223,6 +225,19 @@ wait_for_health() {
   done
   printf 'MTPLX did not become healthy; inspect %s and %s\n' "${stdout_log}" "${stderr_log}" >&2
   exit 1
+}
+
+warm_fim_path() {
+  if [ "${MTPLX_SKIP_FIM_WARMUP:-0}" = "1" ]; then
+    return
+  fi
+  printf 'Warming the Reticle FIM request path...\n'
+  warmup_payload='{"model":"mtplx","prompt":"<|fim_prefix|>function select(user: User) {\n  const value = user.<|fim_suffix|>;\n  return value;\n}\ninterface User { suffixOnlyIdentifier: string }\n<|fim_middle|>","max_tokens":8,"temperature":0,"stream":false,"stop":"\n"}'
+  curl -fsS --max-time 180 "${base_url}/v1/completions" \
+    -H 'Content-Type: application/json' \
+    -d "${warmup_payload}" >/dev/null ||
+    fail "MTPLX is healthy but the Reticle FIM warmup failed; inspect ${stderr_log}"
+  printf 'Reticle FIM request path is warm.\n'
 }
 
 print_json() {
@@ -274,10 +289,12 @@ case "${command}" in
     write_plist "${mtplx_path}"
     load_service
     wait_for_health
+    warm_fim_path
     ;;
   start)
     load_service
     wait_for_health
+    warm_fim_path
     ;;
   stop)
     unload_service
@@ -286,6 +303,7 @@ case "${command}" in
   restart)
     load_service
     wait_for_health
+    warm_fim_path
     ;;
   status)
     if service_loaded; then

@@ -6,7 +6,7 @@ All notable changes to Reticle are documented here.
 
 - Distribute the managed MTPLX service helper through the public `roboalchemist/tap` Homebrew tap.
 - Bound the default MTPLX context to 16K tokens and use Q4 paged KV cache for 16 GB Apple Silicon systems.
-- Add an MTPLX diagnostics command and document source-free install, monitoring, and low-memory recovery.
+- Add an MTPLX diagnostics command, a Reticle-shaped FIM warmup, and documentation for source-free install, monitoring, and low-memory recovery.
 
 ## 0.2.0
 
