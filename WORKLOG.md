@@ -44,3 +44,9 @@
 - Changed lifecycle and monitoring commands to recover custom model, port, profile, context, and KV values from the installed LaunchAgent unless the caller explicitly overrides them.
 - Replaced the generic diagnostic with checks for the actual executable, plist, launchd job, health response, MTP mode, warmup state, and suffix-dependent FIM result.
 - Reproduced the fix on mini without re-exporting its custom port: the doctor discovered port 8010 and returned `suffixOnlyIdentifier`.
+
+## 2026-07-26 — Registry publication retry
+
+- The v0.3.1 tag produced a verified public GitHub release before Marketplace and Open VSX publisher credentials were available.
+- Added a manual registry workflow that checks out an existing tag, downloads its already-published VSIX, and checks the file against GitHub's release-asset SHA-256 before publishing.
+- Kept Marketplace and Open VSX as independently retryable targets because registry publication is non-transactional and an already-published version cannot be submitted twice.
