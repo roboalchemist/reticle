@@ -65,6 +65,40 @@ describe("MTPLX service helper", () => {
     writeExecutable(mtplx, "#!/bin/sh\nexit 0\n");
     writeExecutable(join(bin, "launchctl"), "#!/bin/sh\nexit 0\n");
     writeExecutable(
+      join(bin, "plutil"),
+      `#!/bin/sh
+case "$2" in
+  ProgramArguments) printf '%s\\n' 18 ;;
+  ProgramArguments.0) printf '%s\\n' '${mtplx}' ;;
+  ProgramArguments.1) printf '%s\\n' serve ;;
+  ProgramArguments.2) printf '%s\\n' --model ;;
+  ProgramArguments.3) printf '%s\\n' example/custom-model ;;
+  ProgramArguments.4) printf '%s\\n' --profile ;;
+  ProgramArguments.5) printf '%s\\n' sustained ;;
+  ProgramArguments.6) printf '%s\\n' --host ;;
+  ProgramArguments.7) printf '%s\\n' 127.0.0.1 ;;
+  ProgramArguments.8) printf '%s\\n' --port ;;
+  ProgramArguments.9) printf '%s\\n' 8123 ;;
+  ProgramArguments.10) printf '%s\\n' --batching-preset ;;
+  ProgramArguments.11) printf '%s\\n' latency ;;
+  ProgramArguments.12) printf '%s\\n' --ssd-session-cache ;;
+  ProgramArguments.13) printf '%s\\n' on ;;
+  ProgramArguments.14) printf '%s\\n' --context-window ;;
+  ProgramArguments.15) printf '%s\\n' 12288 ;;
+  ProgramArguments.16) printf '%s\\n' --paged-kv-quantization ;;
+  ProgramArguments.17) printf '%s\\n' q8 ;;
+  ok) printf '%s\\n' true ;;
+  generation_mode) printf '%s\\n' mtp ;;
+  mtp_enabled) printf '%s\\n' true ;;
+  model) printf '%s\\n' custom-served-model ;;
+  profile.name) printf '%s\\n' sustained ;;
+  warmup.error) exit 1 ;;
+  choices.0.text) printf '%s\\n' suffixOnlyIdentifier ;;
+  *) exit 1 ;;
+esac
+`,
+    );
+    writeExecutable(
       join(bin, "curl"),
       `#!/bin/sh
 case "$*" in
