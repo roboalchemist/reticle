@@ -15,3 +15,11 @@ Create the `roboalchemist` publisher in the VS Code Marketplace. In Open VSX, si
 5. Install the published extension into a clean VS Code profile and repeat the configured-endpoint smoke test.
 
 The two registry publications are external, non-transactional operations. If one registry succeeds and the other fails, fix the failed credential or registry issue and republish only the missing registry rather than incrementing the version that already shipped.
+
+## Publish an existing GitHub release
+
+If a tag shipped before one or both registry credentials were configured, run the **Publish existing release to registries** workflow from the repository's Actions tab. Select the existing tag and either `marketplace`, `open-vsx`, or `both`.
+
+The workflow checks out the selected tag, derives the expected VSIX name from its `package.json`, downloads that asset from the existing GitHub release, and verifies the downloaded SHA-256 against GitHub's release-asset digest. It publishes that exact file and does not rebuild or replace the release. A missing credential is a hard failure in this manual workflow.
+
+If `both` publishes successfully to one registry but fails at the other, rerun only the failed target. Registries reject an already-published version, so do not retry the successful target.

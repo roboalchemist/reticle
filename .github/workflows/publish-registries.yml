@@ -1,0 +1,72 @@
+name: Publish existing release to registries
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Reticle GitHub release tag
+        required: true
+        default: v0.3.1
+        type: string
+      target:
+        description: Registry publication to attempt
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - marketplace
+          - open-vsx
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Download and verify the existing release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.tag }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "$TAG_NAME" = "v$version"
+          asset="reticle-$version.vsix"
+          mkdir registry-artifact
+          gh release download "$TAG_NAME" --pattern "$asset" --dir registry-artifact
+          release_digest="$(
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" \
+              --jq ".assets[] | select(.name == \"$asset\") | .digest"
+          )"
+          test -n "$release_digest"
+          test "${release_digest#sha256:}" = "$(sha256sum "registry-artifact/$asset" | cut -d ' ' -f 1)"
+          echo "ASSET_PATH=registry-artifact/$asset" >> "$GITHUB_ENV"
+      - name: Publish to VS Code Marketplace
+        if: inputs.target == 'both' || inputs.target == 'marketplace'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          test -n "$VSCE_PAT" || {
+            echo "::error::VSCE_PAT is not configured"
+            exit 1
+          }
+          npx --no-install vsce publish --packagePath "$ASSET_PATH"
+      - name: Publish to Open VSX
+        if: inputs.target == 'both' || inputs.target == 'open-vsx'
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          test -n "$OVSX_PAT" || {
+            echo "::error::OVSX_PAT is not configured"
+            exit 1
+          }
+          npx --no-install ovsx publish "$ASSET_PATH"
