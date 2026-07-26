@@ -39,7 +39,9 @@ reticle-mtplx stop
 reticle-mtplx start
 ```
 
-`status` gives a compact launchd and health summary. `health` prints the complete server report. `monitor` uses MTPLX's live `/metrics` view, and `dashboard` opens the local dashboard. Logs are stored under `~/.mtplx/logs/`.
+`status` gives a compact launchd and health summary. `health` prints the complete server report. `monitor` uses MTPLX's live `/metrics` view, and `dashboard` opens the local dashboard. `doctor` reads the installed LaunchAgent configuration, checks launchd and `/health`, and runs a suffix-dependent FIM request against the configured port. Logs are stored under `~/.mtplx/logs/`.
+
+Custom install settings are remembered from the LaunchAgent. For example, after `MTPLX_PORT=8010 reticle-mtplx install`, later `status`, `doctor`, `monitor`, and lifecycle commands use port 8010 without requiring the environment variable again. An explicitly supplied environment variable still overrides the installed value for that command.
 
 To remove only the managed service:
 
