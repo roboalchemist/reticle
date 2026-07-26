@@ -1,0 +1,133 @@
+# Reticle
+
+Reticle is BYOK fill-in-the-middle (FIM) ghost text for VS Code. It calls your OpenAI-compatible `POST /v1/completions` endpoint directly—no account, gateway process, or telemetry.
+
+The server must honor both `prompt` (code before the cursor) and `suffix` (code after it), and the selected model must actually support FIM. Chat-only models are not compatible even when their server implements an OpenAI-shaped API.
+
+## Install
+
+Download `reticle-0.1.0.vsix` from the [latest GitHub release](https://github.com/roboalchemist/reticle/releases/latest), then install it from VS Code's **Extensions: Install from VSIX...** command or the terminal:
+
+```bash
+code --install-extension reticle-0.1.0.vsix
+```
+
+Registry listings will also be available under `roboalchemist.reticle` on the VS Code Marketplace and Open VSX after publisher verification is complete.
+
+## Quick start with Ollama
+
+1. Install [Ollama](https://ollama.com/download), then pull the FIM-trained **Base** checkpoint:
+
+   ```bash
+   ollama pull qwen2.5-coder:1.5b-base
+   ollama serve
+   ```
+
+2. Verify the model/server pair before configuring Reticle:
+
+   ```bash
+   curl --silent --show-error http://127.0.0.1:11434/v1/completions \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "model": "qwen2.5-coder:1.5b-base",
+       "prompt": "function add(a, b) {\n  return ",
+       "suffix": "\n}\n",
+       "max_tokens": 32,
+       "temperature": 0,
+       "stream": false
+     }'
+   ```
+
+   `choices[0].text` should be a bare insertion such as `a + b`, without a rewritten function, explanation, or Markdown fence.
+
+3. Install the Reticle VSIX, open VS Code Settings, and set:
+
+   ```jsonc
+   {
+     "reticle.baseURL": "http://127.0.0.1:11434/v1",
+     "reticle.model": "qwen2.5-coder:1.5b-base",
+   }
+   ```
+
+4. Run **Reticle: Test Autocomplete Endpoint** from the Command Palette. Then type after `return ` in a source file. Reticle shows ghost text; press `Tab` to accept it. **Reticle: Trigger Inline Completion** (`Cmd+Alt+Space` on macOS, `Ctrl+Alt+Space` elsewhere) requests one manually.
+
+Disable other inline-completion extensions while validating so their ghost text is not mistaken for Reticle's.
+
+## The compatibility litmus
+
+Use the same request with every provider, changing only the URL, model ID, and optional authorization header:
+
+```bash
+curl --silent --show-error https://HOST/v1/completions \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "MODEL_ID",
+    "prompt": "function add(a, b) {\n  return ",
+    "suffix": "\n}\n",
+    "max_tokens": 32,
+    "temperature": 0,
+    "stream": false
+  }'
+```
+
+Compatible output has a `choices[0].text` insertion like `a + b`. Once that passes, repeat with `"stream": true`; Reticle uses the streaming path. A server may accept `suffix` while silently ignoring it, so an HTTP 200 alone proves nothing.
+
+## Configuration
+
+| Setting                     |                    Default | Purpose                                                                                         |
+| --------------------------- | -------------------------: | ----------------------------------------------------------------------------------------------- |
+| `reticle.baseURL`           | `http://127.0.0.1:8001/v1` | OpenAI-compatible base URL. Reticle appends `/completions`.                                     |
+| `reticle.model`             |                      empty | Exact model ID from the server's `/v1/models` response.                                         |
+| `reticle.apiKey`            |                      empty | Optional on loopback; required for remote endpoints.                                            |
+| `reticle.extraHeaders`      |                       `{}` | Additional string-valued request headers.                                                       |
+| `reticle.maxTokens`         |                      `256` | Maximum generated tokens (1–2048).                                                              |
+| `reticle.temperature`       |                        `0` | Sampling temperature (0–2).                                                                     |
+| `reticle.debounceMs`        |                      `100` | Automatic-request delay (75–150 ms).                                                            |
+| `reticle.enableAutoTrigger` |                     `true` | Enables automatic suggestions.                                                                  |
+| `reticle.multiFileContext`  |                    `false` | Opt-in context from relevant files in the same workspace. This sends more code to the endpoint. |
+| `reticle.languageAllowlist` |                       `[]` | When non-empty, only listed VS Code language IDs are enabled.                                   |
+| `reticle.languageDenylist`  |                       `[]` | Language IDs to disable; deny takes precedence.                                                 |
+
+Reticle requires HTTPS and an API key for non-loopback endpoints. It never logs response bodies from HTTP errors, because providers can reflect credentials or request content.
+
+## Provider guides
+
+- [Ollama](docs/providers/ollama.md) — recommended first setup; its OpenAI compatibility documents `suffix`.
+- [llama.cpp](docs/providers/llama-cpp.md) — excellent FIM runtime, with an important `/infill` versus `/v1/completions` caveat.
+- [OMLX](docs/providers/omlx.md) — Apple Silicon serving and the archive's fastest Mac-local model result.
+- [LM Studio](docs/providers/lm-studio.md) — GUI/headless local server; verify suffix mapping for the exact version and model.
+- [Remote hosted provider](docs/providers/remote.md) — HTTPS, key handling, and suffix-support checks.
+
+See the evidence-based [model compatibility table](docs/model-compatibility.md) before choosing a checkpoint.
+
+## Troubleshooting
+
+- **Prose, an explanation, or fenced Markdown:** the model is behaving as chat, not FIM. Select a Base/FIM checkpoint and rerun the litmus. Fence stripping cannot make a model suffix-aware.
+- **The model repeats or rewrites the suffix:** the server ignored `suffix` or used the wrong FIM serialization. This model/server pair is not compatible through Reticle's transport.
+- **Empty output:** verify the exact model ID with `GET /v1/models`, inspect server logs, increase `reticle.maxTokens`, and rerun the non-streaming probe.
+- **Remote configuration error:** use an `https://` base URL and set `reticle.apiKey`. Reticle intentionally rejects insecure remote HTTP.
+- **Suggestions are slow only on the first edit:** cold prompt prefill can take seconds. Keep the model loaded; cache-aware servers benefit from Reticle's stable per-model/per-document session header.
+- **No suggestion in one language:** check the allowlist and denylist. The denylist wins.
+- **Wrong extension's suggestion appears:** temporarily disable Copilot and other inline-completion extensions.
+
+## Development
+
+```bash
+npm ci
+npm run compile
+npm test
+npm run lint
+```
+
+The live integration test is explicit and loopback-only:
+
+```bash
+RETICLE_INTEGRATION=1 \
+RETICLE_INTEGRATION_MODEL=qwen2.5-coder:1.5b-base \
+npm run test:integration
+```
+
+## License
+
+MIT. The optional context engine is an original lightweight implementation; no third-party context-retrieval code is vendored.

@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run compile
+      - run: npm test
+      - name: Run extension-host E2E tests
+        run: xvfb-run -a npm run test:e2e
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run package
+
+  release:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify tag matches extension version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: test "${TAG_NAME#v}" = "$(node -p "require('./package.json').version")"
+      - run: npm run package
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "reticle-$(node -p "require('./package.json').version").vsix" --generate-notes
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT is not configured; skipping Marketplace publication."
+            exit 0
+          fi
+          npx --no-install vsce publish --packagePath "reticle-$(node -p "require('./package.json').version").vsix"
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "OVSX_PAT is not configured; skipping Open VSX publication."
+            exit 0
+          fi
+          npx --no-install ovsx publish "reticle-$(node -p "require('./package.json').version").vsix"

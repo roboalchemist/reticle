@@ -1,0 +1,199 @@
+{
+  "name": "reticle",
+  "displayName": "Reticle",
+  "description": "BYOK fill-in-the-middle inline autocomplete for any OpenAI-compatible completions endpoint.",
+  "version": "0.1.0",
+  "publisher": "roboalchemist",
+  "license": "MIT",
+  "private": false,
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#071B3D",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/roboalchemist/reticle.git"
+  },
+  "homepage": "https://github.com/roboalchemist/reticle#readme",
+  "bugs": {
+    "url": "https://github.com/roboalchemist/reticle/issues"
+  },
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "autocomplete",
+    "fim",
+    "byok",
+    "openai",
+    "local-llm"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:reticle.toggle",
+    "onCommand:reticle.triggerCompletion",
+    "onCommand:reticle.testEndpoint"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "reticle.toggle",
+        "title": "Enable/Disable Autocomplete",
+        "category": "Reticle"
+      },
+      {
+        "command": "reticle.triggerCompletion",
+        "title": "Trigger Inline Completion",
+        "category": "Reticle"
+      },
+      {
+        "command": "reticle.testEndpoint",
+        "title": "Test Autocomplete Endpoint",
+        "category": "Reticle"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "reticle.toggle",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r"
+      },
+      {
+        "command": "reticle.triggerCompletion",
+        "key": "ctrl+alt+space",
+        "mac": "cmd+alt+space",
+        "when": "editorTextFocus && !editorHasSelection"
+      }
+    ],
+    "configuration": {
+      "title": "Reticle",
+      "properties": {
+        "reticle.baseURL": {
+          "type": "string",
+          "default": "http://127.0.0.1:8001/v1",
+          "description": "Base URL of an OpenAI-compatible API. Reticle calls its /completions endpoint directly."
+        },
+        "reticle.model": {
+          "type": "string",
+          "default": "",
+          "description": "Fill-in-the-middle model ID as reported by the server. Chat-only models are not supported."
+        },
+        "reticle.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional API key. It may be blank for loopback servers; remote endpoints require a key.",
+          "scope": "window"
+        },
+        "reticle.extraHeaders": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Additional HTTP headers to send with autocomplete requests."
+        },
+        "reticle.maxTokens": {
+          "type": "number",
+          "default": 256,
+          "minimum": 1,
+          "maximum": 2048,
+          "description": "Maximum number of tokens requested per completion."
+        },
+        "reticle.temperature": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature for completions."
+        },
+        "reticle.debounceMs": {
+          "type": "number",
+          "default": 100,
+          "minimum": 75,
+          "maximum": 150,
+          "description": "Delay before automatic completion requests, in milliseconds."
+        },
+        "reticle.enableAutoTrigger": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Enable automatic inline completion suggestions while typing."
+        },
+        "reticle.multiFileContext": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include relevant snippets from other open files. This is opt-in because code is sent to the configured endpoint."
+        },
+        "reticle.languageAllowlist": {
+          "type": "array",
+          "default": [],
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          },
+          "description": "If non-empty, only these VS Code language IDs receive suggestions."
+        },
+        "reticle.languageDenylist": {
+          "type": "array",
+          "default": [],
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          },
+          "description": "VS Code language IDs that never receive suggestions. The denylist takes precedence."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "clean": "node -e \"for (const path of ['dist', '.e2e-out']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
+    "check-types": "tsc --noEmit",
+    "build": "node esbuild.mjs",
+    "compile": "npm run check-types && npm run build",
+    "watch": "node esbuild.mjs --watch",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "compile:e2e": "tsc -p tsconfig.e2e.json",
+    "test": "vitest run --passWithNoTests --exclude 'test/integration/**' --exclude 'test/e2e/**' --exclude '.e2e-out/**'",
+    "test:unit": "vitest run --passWithNoTests --exclude 'test/integration/**' --exclude 'test/e2e/**' --exclude '.e2e-out/**'",
+    "test:integration": "vitest run test/integration/live-endpoint.test.ts",
+    "test:e2e": "npm run compile && npm run compile:e2e && vscode-test",
+    "package": "vsce package --baseContentUrl https://github.com/roboalchemist/reticle/blob/main --baseImagesUrl https://raw.githubusercontent.com/roboalchemist/reticle/main"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.15.30",
+    "@types/vscode": "^1.96.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.25.6",
+    "eslint": "^10.8.0",
+    "ovsx": "1.0.2",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "@vscode/test-cli": {
+      "mocha": {
+        "diff": "8.0.4",
+        "glob": "11.1.0",
+        "minimatch": "10.2.5",
+        "serialize-javascript": "7.0.7"
+      }
+    },
+    "fast-uri": "3.1.4"
+  }
+}
