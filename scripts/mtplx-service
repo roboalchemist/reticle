@@ -3,6 +3,7 @@
 set -eu
 
 service_label="io.github.roboalchemist.reticle.mtplx"
+command_name="${0##*/}"
 service_uid="$(id -u)"
 service_domain="gui/${service_uid}"
 service_target="${service_domain}/${service_label}"
@@ -13,11 +14,13 @@ stderr_log="${log_dir}/reticle-mtplx.error.log"
 model="${MTPLX_MODEL:-Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed}"
 port="${MTPLX_PORT:-8000}"
 profile="${MTPLX_PROFILE:-sustained}"
+context_window="${MTPLX_CONTEXT_WINDOW:-16384}"
+kv_quantization="${MTPLX_KV_QUANTIZATION:-q4}"
 base_url="http://127.0.0.1:${port}"
 
 usage() {
-  cat <<'EOF'
-Usage: scripts/mtplx-service COMMAND
+  cat <<EOF
+Usage: ${command_name} COMMAND
 
 Commands:
   install     Install MTPLX/model, create the user LaunchAgent, and wait for health
@@ -29,12 +32,15 @@ Commands:
   monitor     Watch compact GET /metrics output until interrupted
   dashboard   Open the MTPLX dashboard
   logs        Follow service stdout and stderr
+  doctor      Run MTPLX's local environment diagnostics
   uninstall   Unload the service and remove its plist; models and caches are preserved
 
 Environment:
   MTPLX_MODEL          Hugging Face model ID or local model path
   MTPLX_PORT           Loopback port (default: 8000)
   MTPLX_PROFILE        MTPLX runtime profile (default: sustained)
+  MTPLX_CONTEXT_WINDOW Context ceiling in tokens (default: 16384)
+  MTPLX_KV_QUANTIZATION Paged KV mode: off, q8, or q4 (default: q4)
   MTPLX_BIN            Absolute mtplx executable override
   MTPLX_LOG_DIR        Log directory (default: ~/.mtplx/logs)
   MTPLX_SKIP_DOWNLOAD  Set to 1 when the selected model is already cached
@@ -52,6 +58,18 @@ validate_port() {
   esac
   [ "${port}" -ge 1 ] && [ "${port}" -le 65535 ] ||
     fail "MTPLX_PORT must be an integer from 1 to 65535"
+}
+
+validate_runtime_options() {
+  case "${context_window}" in
+    ''|*[!0-9]*) fail "MTPLX_CONTEXT_WINDOW must be an integer of at least 4096" ;;
+  esac
+  [ "${context_window}" -ge 4096 ] ||
+    fail "MTPLX_CONTEXT_WINDOW must be an integer of at least 4096"
+  case "${kv_quantization}" in
+    off|q8|q4) ;;
+    *) fail "MTPLX_KV_QUANTIZATION must be off, q8, or q4" ;;
+  esac
 }
 
 resolve_mtplx() {
@@ -80,7 +98,11 @@ install_mtplx() {
   command -v brew >/dev/null 2>&1 ||
     fail "Homebrew is required. Install it from https://brew.sh, then retry."
   brew tap youssofal/mtplx
-  brew install youssofal/mtplx/mtplx
+  if brew install --help 2>/dev/null | grep -q -- '--no-ask'; then
+    brew install --no-ask youssofal/mtplx/mtplx
+  else
+    brew install youssofal/mtplx/mtplx
+  fi
 }
 
 xml_escape() {
@@ -96,6 +118,8 @@ write_plist() {
   escaped_bin="$(xml_escape "${mtplx_path}")"
   escaped_model="$(xml_escape "${model}")"
   escaped_profile="$(xml_escape "${profile}")"
+  escaped_context_window="$(xml_escape "${context_window}")"
+  escaped_kv_quantization="$(xml_escape "${kv_quantization}")"
   escaped_stdout="$(xml_escape "${stdout_log}")"
   escaped_stderr="$(xml_escape "${stderr_log}")"
   escaped_path="$(xml_escape "$(dirname "${mtplx_path}"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")"
@@ -122,6 +146,10 @@ write_plist() {
     <string>latency</string>
     <string>--ssd-session-cache</string>
     <string>on</string>
+    <string>--context-window</string>
+    <string>${escaped_context_window}</string>
+    <string>--paged-kv-quantization</string>
+    <string>${escaped_kv_quantization}</string>
     <string>--default-temperature</string>
     <string>0</string>
     <string>--default-top-p</string>
@@ -233,6 +261,7 @@ print_status_json() {
 }
 
 validate_port
+validate_runtime_options
 command="${1:-}"
 case "${command}" in
   install)
@@ -280,6 +309,10 @@ case "${command}" in
     mkdir -p "${log_dir}"
     touch "${stdout_log}" "${stderr_log}"
     exec tail -n 100 -F "${stdout_log}" "${stderr_log}"
+    ;;
+  doctor)
+    mtplx_path="$(resolve_mtplx)" || fail "mtplx executable not found"
+    exec "${mtplx_path}" doctor --summary
     ;;
   uninstall)
     unload_service
