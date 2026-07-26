@@ -16,7 +16,7 @@ port="${MTPLX_PORT:-8000}"
 profile="${MTPLX_PROFILE:-sustained}"
 context_window="${MTPLX_CONTEXT_WINDOW:-16384}"
 kv_quantization="${MTPLX_KV_QUANTIZATION:-q4}"
-base_url="http://127.0.0.1:${port}"
+fim_probe_payload='{"model":"mtplx","prompt":"<|fim_prefix|>function select(user: User) {\n  const value = user.<|fim_suffix|>;\n  return value;\n}\ninterface User { suffixOnlyIdentifier: string }\n<|fim_middle|>","max_tokens":8,"temperature":0,"stream":false,"stop":"\n"}'
 
 usage() {
   cat <<EOF
@@ -32,7 +32,7 @@ Commands:
   monitor     Watch compact GET /metrics output until interrupted
   dashboard   Open the MTPLX dashboard
   logs        Follow service stdout and stderr
-  doctor      Run MTPLX's local environment diagnostics
+  doctor      Validate the installed service, health report, and live FIM path
   uninstall   Unload the service and remove its plist; models and caches are preserved
 
 Environment:
@@ -90,6 +90,55 @@ resolve_mtplx() {
     fi
   done
   return 1
+}
+
+installed_config_value() {
+  option_name="${1}"
+  argument_count="$(plutil -extract ProgramArguments raw -o - "${plist_path}" 2>/dev/null)" ||
+    return 1
+  case "${argument_count}" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+
+  argument_index=0
+  while [ "${argument_index}" -lt "${argument_count}" ]; do
+    argument_value="$(
+      plutil -extract "ProgramArguments.${argument_index}" raw -o - "${plist_path}" 2>/dev/null
+    )" || return 1
+    if [ "${argument_value}" = "${option_name}" ]; then
+      value_index=$((argument_index + 1))
+      [ "${value_index}" -lt "${argument_count}" ] || return 1
+      plutil -extract "ProgramArguments.${value_index}" raw -o - "${plist_path}" 2>/dev/null
+      return
+    fi
+    argument_index=$((argument_index + 1))
+  done
+  return 1
+}
+
+load_installed_config() {
+  [ -f "${plist_path}" ] || return
+
+  if [ -z "${MTPLX_MODEL+x}" ]; then
+    installed_value="$(installed_config_value --model || true)"
+    [ -z "${installed_value}" ] || model="${installed_value}"
+  fi
+  if [ -z "${MTPLX_PROFILE+x}" ]; then
+    installed_value="$(installed_config_value --profile || true)"
+    [ -z "${installed_value}" ] || profile="${installed_value}"
+  fi
+  if [ -z "${MTPLX_PORT+x}" ]; then
+    installed_value="$(installed_config_value --port || true)"
+    [ -z "${installed_value}" ] || port="${installed_value}"
+  fi
+  if [ -z "${MTPLX_CONTEXT_WINDOW+x}" ]; then
+    installed_value="$(installed_config_value --context-window || true)"
+    [ -z "${installed_value}" ] || context_window="${installed_value}"
+  fi
+  if [ -z "${MTPLX_KV_QUANTIZATION+x}" ]; then
+    installed_value="$(installed_config_value --paged-kv-quantization || true)"
+    [ -z "${installed_value}" ] || kv_quantization="${installed_value}"
+  fi
 }
 
 install_mtplx() {
@@ -232,12 +281,90 @@ warm_fim_path() {
     return
   fi
   printf 'Warming the Reticle FIM request path...\n'
-  warmup_payload='{"model":"mtplx","prompt":"<|fim_prefix|>function select(user: User) {\n  const value = user.<|fim_suffix|>;\n  return value;\n}\ninterface User { suffixOnlyIdentifier: string }\n<|fim_middle|>","max_tokens":8,"temperature":0,"stream":false,"stop":"\n"}'
   curl -fsS --max-time 180 "${base_url}/v1/completions" \
     -H 'Content-Type: application/json' \
-    -d "${warmup_payload}" >/dev/null ||
+    -d "${fim_probe_payload}" >/dev/null ||
     fail "MTPLX is healthy but the Reticle FIM warmup failed; inspect ${stderr_log}"
   printf 'Reticle FIM request path is warm.\n'
+}
+
+json_value() {
+  plutil -extract "${1}" raw -o - - 2>/dev/null
+}
+
+run_doctor() {
+  doctor_ok=1
+  printf 'Reticle MTPLX doctor\n'
+  printf 'configured endpoint: %s\n' "${base_url}"
+  printf 'configured model: %s\n' "${model}"
+  printf 'configured runtime: profile=%s context=%s kv=%s\n' \
+    "${profile}" "${context_window}" "${kv_quantization}"
+
+  if mtplx_path="$(resolve_mtplx)"; then
+    printf 'PASS executable: %s\n' "${mtplx_path}"
+  else
+    printf 'FAIL executable: mtplx was not found\n' >&2
+    doctor_ok=0
+  fi
+
+  if [ -f "${plist_path}" ]; then
+    printf 'PASS service definition: %s\n' "${plist_path}"
+  else
+    printf 'FAIL service definition: missing %s\n' "${plist_path}" >&2
+    doctor_ok=0
+  fi
+
+  if service_loaded; then
+    printf 'PASS launchd: loaded (%s)\n' "${service_target}"
+  else
+    printf 'FAIL launchd: not loaded (%s)\n' "${service_target}" >&2
+    doctor_ok=0
+  fi
+
+  health_response=""
+  if health_response="$(curl -fsS --max-time 5 "${base_url}/health")"; then
+    health_ok="$(printf '%s' "${health_response}" | json_value ok || true)"
+    generation_mode="$(printf '%s' "${health_response}" | json_value generation_mode || true)"
+    mtp_enabled="$(printf '%s' "${health_response}" | json_value mtp_enabled || true)"
+    served_model="$(printf '%s' "${health_response}" | json_value model || true)"
+    served_profile="$(printf '%s' "${health_response}" | json_value profile.name || true)"
+    warmup_error="$(printf '%s' "${health_response}" | json_value warmup.error || true)"
+    if [ "${health_ok}" = "true" ] &&
+      [ "${generation_mode}" = "mtp" ] &&
+      [ "${mtp_enabled}" = "true" ] &&
+      { [ -z "${warmup_error}" ] || [ "${warmup_error}" = "null" ]; }; then
+      printf 'PASS health: model=%s profile=%s mode=%s mtp=%s\n' \
+        "${served_model:-unknown}" "${served_profile:-unknown}" \
+        "${generation_mode}" "${mtp_enabled}"
+    else
+      printf 'FAIL health: ok=%s mode=%s mtp=%s warmup_error=%s\n' \
+        "${health_ok:-unknown}" "${generation_mode:-unknown}" \
+        "${mtp_enabled:-unknown}" "${warmup_error:-none}" >&2
+      doctor_ok=0
+    fi
+  else
+    printf 'FAIL health: GET %s/health failed\n' "${base_url}" >&2
+    doctor_ok=0
+  fi
+
+  fim_response=""
+  if fim_response="$(curl -fsS --max-time 180 "${base_url}/v1/completions" \
+    -H 'Content-Type: application/json' -d "${fim_probe_payload}")"; then
+    completion="$(printf '%s' "${fim_response}" | json_value choices.0.text || true)"
+    if [ "${completion}" = "suffixOnlyIdentifier" ]; then
+      printf 'PASS FIM probe: suffixOnlyIdentifier\n'
+    else
+      printf 'FAIL FIM probe: expected suffixOnlyIdentifier, got %s\n' \
+        "${completion:-no completion}" >&2
+      doctor_ok=0
+    fi
+  else
+    printf 'FAIL FIM probe: POST %s/v1/completions failed\n' "${base_url}" >&2
+    doctor_ok=0
+  fi
+
+  [ "${doctor_ok}" -eq 1 ] || exit 1
+  printf 'Reticle MTPLX doctor: pass\n'
 }
 
 print_json() {
@@ -275,9 +402,15 @@ print_status_json() {
   fi
 }
 
+command="${1:-}"
+case "${command}" in
+  start|restart|status|health|monitor|dashboard|doctor)
+    load_installed_config
+    ;;
+esac
+base_url="http://127.0.0.1:${port}"
 validate_port
 validate_runtime_options
-command="${1:-}"
 case "${command}" in
   install)
     install_mtplx
@@ -329,8 +462,7 @@ case "${command}" in
     exec tail -n 100 -F "${stdout_log}" "${stderr_log}"
     ;;
   doctor)
-    mtplx_path="$(resolve_mtplx)" || fail "mtplx executable not found"
-    exec "${mtplx_path}" doctor --summary
+    run_doctor
     ;;
   uninstall)
     unload_service

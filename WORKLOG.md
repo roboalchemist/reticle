@@ -37,3 +37,10 @@
 - Added conservative 16K context and Q4 paged-KV defaults plus a diagnostics command for memory-constrained Macs.
 - The first mini extension-host run timed out while several competing model runtimes were resident. Stopping those runtimes reduced swap use from 11.7 GB to 0.6 GB and made the 9B model stable, but direct warm requests still took about 5 seconds on the M1; documented 16 GB as a validation floor, not an everyday performance recommendation.
 - Added a Reticle-shaped warmup after service startup so one-time graph and request-path costs are paid during installation or restart instead of the first editor completion.
+
+## 2026-07-26 — Installed-service diagnostics
+
+- The first public `doctor` command delegated to MTPLX's generic diagnostics, which ignored Reticle's installed 9B model and custom port and falsely assessed the upstream 27B/port-8000 defaults.
+- Changed lifecycle and monitoring commands to recover custom model, port, profile, context, and KV values from the installed LaunchAgent unless the caller explicitly overrides them.
+- Replaced the generic diagnostic with checks for the actual executable, plist, launchd job, health response, MTP mode, warmup state, and suffix-dependent FIM result.
+- Reproduced the fix on mini without re-exporting its custom port: the doctor discovered port 8010 and returned `suffixOnlyIdentifier`.

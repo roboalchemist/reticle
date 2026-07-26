@@ -2,6 +2,11 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.3.1
+
+- Remember custom model, port, profile, context, and KV settings from the installed LaunchAgent for later service commands.
+- Make `doctor` inspect the actual Reticle service and run a suffix-dependent FIM probe instead of reporting MTPLX's unrelated default configuration.
+
 ## 0.3.0
 
 - Distribute the managed MTPLX service helper through the public `roboalchemist/tap` Homebrew tap.
