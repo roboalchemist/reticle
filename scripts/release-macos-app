@@ -46,4 +46,4 @@ xcrun stapler staple "${dmg_path}"
 xcrun stapler validate "${dmg_path}"
 spctl --assess --type open --context context:primary-signature --verbose=4 "${dmg_path}"
 
-shasum -a 256 "${zip_path}" "${dmg_path}"
+openssl dgst -sha256 "${zip_path}" "${dmg_path}"
