@@ -1,5 +1,11 @@
 # Worklog
 
+## 2026-07-26 — Suppress post-accept completion loops
+
+- Reproduced repeated blocks from MTPLX request logs: accepting a Reticle insertion caused VS Code to invoke the automatic provider again at the new cursor, even though MTPLX's session cache was empty.
+- Track the exact insertion, document version, and range offset offered by Reticle. A matching document change is treated as acceptance and suppresses automatic completion until the next non-matching user edit.
+- Manual forced completion remains available during suppression. Added unit coverage for multi-line acceptance, manual bypass, and re-enabling after a user edit, plus a live extension-host acceptance check.
+
 ## 2026-07-26 — Working macOS forced-completion shortcut
 
 - Audited the installed release and found that multi-line completion, MTPLX, and the local eight-line setting were healthy, but the published manifest and README still used `Cmd+Option+Space`.

@@ -42,6 +42,7 @@ export function activate(context: vscode.ExtensionContext): ReticleExtensionApi 
     provider,
     vscode.languages.registerInlineCompletionItemProvider(selector, provider),
     vscode.workspace.onDidChangeTextDocument((event) => {
+      provider.recordDocumentChange(event.document, event.contentChanges);
       if (vscode.workspace.getConfiguration("reticle").get<boolean>("multiFileContext", false)) {
         contextEngine.recordEdit(event.document);
       }
