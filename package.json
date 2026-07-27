@@ -104,11 +104,13 @@
           "type": "string",
           "default": "openai",
           "enum": [
+            "codestral",
             "openai",
             "qwen",
             "seed"
           ],
           "enumDescriptions": [
+            "Embed prefix and suffix with Codestral's native FIM control tokens.",
             "Send prompt and suffix as separate OpenAI completions fields.",
             "Embed prefix and suffix with Qwen PSM markers for servers such as MTPLX that perform plain prompt completion.",
             "Embed suffix and prefix with Seed-Coder's native SPM markers for plain-completion servers such as MLX-LM."

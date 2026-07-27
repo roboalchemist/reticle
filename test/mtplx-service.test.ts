@@ -33,6 +33,8 @@ describe("MTPLX service helper", () => {
     expect(result.stdout).toContain("MTPLX_CONTEXT_WINDOW");
     expect(result.stdout).toContain("MTPLX_KV_QUANTIZATION");
     expect(result.stdout).toContain("MTPLX_SKIP_FIM_WARMUP");
+    expect(result.stdout).toContain("download");
+    expect(result.stdout).toContain("model-status");
     expect(result.stdout).toContain("doctor");
   });
 
@@ -178,5 +180,49 @@ esac
     );
     expect(result.stdout).toContain("PASS FIM probe: suffixOnlyIdentifier");
     expect(result.stdout).toContain("Reticle MTPLX doctor: pass");
+  });
+
+  it("exposes native MTPLX download progress and validates the cached model", () => {
+    const home = mkdtempSync(join(tmpdir(), "reticle-mtplx-download-"));
+    temporaryDirectories.push(home);
+    const mtplx = join(home, "mtplx");
+    writeExecutable(
+      mtplx,
+      `#!/bin/sh
+case "$1" in
+  pull)
+    printf '%s\\n' '{"event":"start","size_bytes":0,"total_bytes":100}'
+    printf '%s\\n' '{"event":"progress","size_bytes":50,"total_bytes":100,"file":"weights"}'
+    printf '%s\\n' '{"event":"complete","size_bytes":100,"total_bytes":100}'
+    ;;
+  inspect)
+    printf '%s\\n' '{"compatibility":{"can_run":true},"mtp":{"exists":true}}'
+    ;;
+  *) exit 2 ;;
+esac
+`,
+    );
+    const env = {
+      ...process.env,
+      HOME: home,
+      MTPLX_BIN: mtplx,
+      MTPLX_MODEL: "example/native-mtp",
+    };
+
+    const download = spawnSync(join(process.cwd(), "scripts", "mtplx-service"), ["download"], {
+      encoding: "utf8",
+      env,
+    });
+    const status = spawnSync(join(process.cwd(), "scripts", "mtplx-service"), ["model-status"], {
+      encoding: "utf8",
+      env,
+    });
+
+    expect(download.status).toBe(0);
+    expect(download.stdout).toContain("RETICLE_DOWNLOAD_WORKER");
+    expect(download.stdout).toContain('"event":"progress"');
+    expect(status.status).toBe(0);
+    expect(status.stdout).toContain("runtime: mtplx");
+    expect(status.stdout).toContain("FIM format: qwen");
   });
 });

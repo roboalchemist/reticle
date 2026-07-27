@@ -22,7 +22,7 @@ enum ServiceState: Equatable {
 
   var symbolName: String {
     switch self {
-    case .healthy: "scope"
+    case .healthy: "checkmark.circle.fill"
     case .checking, .starting: "circle.dotted"
     case .stopped, .notInstalled: "circle"
     case .failed: "exclamationmark.circle"
@@ -37,19 +37,30 @@ final class ServiceController: ObservableObject {
   @Published private(set) var output = "Reticle MLX is checking the local service."
   @Published private(set) var installedModel = ServiceConfiguration.defaults.model
   @Published private(set) var installedFormat = ServiceConfiguration.defaults.fimFormat
+  @Published private(set) var installedRuntime = ServiceConfiguration.defaults.runtime
   @Published private(set) var endpoint = "http://127.0.0.1:8001/v1"
 
-  private let runner: CommandRunner?
+  let downloads: ModelDownloadController
+  private let mlxRunner: CommandRunner?
+  private let mtplxRunner: CommandRunner?
 
-  init(runner: CommandRunner? = CommandRunner.resolveExecutable().map(CommandRunner.init)) {
-    self.runner = runner
+  init(
+    mlxRunner: CommandRunner? = CommandRunner.resolveExecutable().map(CommandRunner.init),
+    mtplxRunner: CommandRunner? = CommandRunner.resolveMTPLXExecutable().map(CommandRunner.init),
+    downloads: ModelDownloadController? = nil
+  ) {
+    self.mlxRunner = mlxRunner
+    self.mtplxRunner = mtplxRunner
+    self.downloads = downloads ?? ModelDownloadController()
   }
 
   func refresh() async {
     guard !isBusy else { return }
+    let runtime = ServiceConfiguration.load().runtime
+    let runner = runner(for: runtime)
     guard let runner else {
       state = .notInstalled
-      output = "The reticle-mlx helper is missing from the app bundle."
+      output = "The \(runtime.displayName) helper is missing from the app bundle."
       return
     }
 
@@ -64,8 +75,12 @@ final class ServiceController: ObservableObject {
       state = .starting
     } else if result.output.contains("launchd: not loaded"),
       FileManager.default.fileExists(
-        atPath: NSString(string: "~/Library/LaunchAgents/io.github.roboalchemist.reticle-mlx.plist")
-          .expandingTildeInPath
+        atPath: NSString(
+          string:
+            runtime == .mtplx
+            ? "~/Library/LaunchAgents/io.github.roboalchemist.reticle.mtplx.plist"
+            : "~/Library/LaunchAgents/io.github.roboalchemist.reticle-mlx.plist"
+        ).expandingTildeInPath
       )
     {
       state = .stopped
@@ -76,23 +91,79 @@ final class ServiceController: ObservableObject {
 
   func install(_ configuration: ServiceConfiguration) async {
     configuration.save()
-    await perform("install", environment: configuration.environment)
+    if let otherRunner = runner(for: configuration.runtime == .mlxLM ? .mtplx : .mlxLM) {
+      _ = await otherRunner.run("stop")
+    }
+    await perform(
+      "install",
+      runtime: configuration.runtime,
+      environment: configuration.serviceEnvironment
+    )
+  }
+
+  func download(_ preset: ModelPreset) {
+    let runner = runner(for: preset.runtime)
+    guard let runner else {
+      state = .notInstalled
+      output = "The \(preset.runtime.displayName) helper is missing from the app bundle."
+      return
+    }
+    downloads.start(preset, executableURL: runner.executableURL)
+  }
+
+  func refreshModelDownloads() async {
+    for preset in ModelPreset.suggested {
+      guard let runner = runner(for: preset.runtime) else {
+        downloads.markDownloaded(preset, downloaded: false)
+        continue
+      }
+      let environment: [String: String]
+      switch preset.runtime {
+      case .mlxLM:
+        environment = [
+          "RETICLE_MLX_MODEL": preset.model,
+          "RETICLE_MLX_FIM_FORMAT": preset.fimFormat,
+        ]
+      case .mtplx:
+        environment = ["MTPLX_MODEL": preset.model]
+      }
+      let result = await runner.run(
+        "model-status",
+        environment: environment
+      )
+      downloads.markDownloaded(preset, downloaded: result.succeeded)
+    }
   }
 
   func start() async {
-    await perform("start")
+    await perform("start", runtime: ServiceConfiguration.load().runtime)
   }
 
   func stop() async {
-    await perform("stop")
+    await perform("stop", runtime: ServiceConfiguration.load().runtime)
   }
 
   func restart() async {
-    await perform("restart")
+    await perform("restart", runtime: ServiceConfiguration.load().runtime)
   }
 
   func doctor() async {
-    await perform("doctor")
+    await perform("doctor", runtime: ServiceConfiguration.load().runtime)
+  }
+
+  func installVSCodeExtension() async {
+    await performAuxiliary(
+      "vscode-install",
+      progressMessage: "Installing the Reticle VS Code extension…"
+    )
+  }
+
+  func vscodeDoctor(_ configuration: ServiceConfiguration) async {
+    await performAuxiliary(
+      "vscode-doctor",
+      environment: configuration.vscodeEnvironment,
+      progressMessage: "Checking the Reticle VS Code integration…"
+    )
   }
 
   func copyVSCodeSettings(_ configuration: ServiceConfiguration) {
@@ -102,18 +173,25 @@ final class ServiceController: ObservableObject {
   }
 
   func openLogs() {
+    let runtime = ServiceConfiguration.load().runtime
+    let path = runtime == .mtplx ? "~/.mtplx/logs" : "~/.reticle/mlx/logs"
     let logs = URL(
-      fileURLWithPath: NSString(string: "~/.reticle/mlx/logs").expandingTildeInPath,
+      fileURLWithPath: NSString(string: path).expandingTildeInPath,
       isDirectory: true
     )
     try? FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
     NSWorkspace.shared.open(logs)
   }
 
-  private func perform(_ command: String, environment: [String: String] = [:]) async {
+  private func perform(
+    _ command: String,
+    runtime: ModelRuntime,
+    environment: [String: String] = [:]
+  ) async {
+    let runner = runner(for: runtime)
     guard let runner else {
       state = .notInstalled
-      output = "The reticle-mlx helper is missing from the app bundle."
+      output = "The \(runtime.displayName) helper is missing from the app bundle."
       return
     }
 
@@ -130,6 +208,24 @@ final class ServiceController: ObservableObject {
     }
   }
 
+  private func performAuxiliary(
+    _ command: String,
+    environment: [String: String] = [:],
+    progressMessage: String
+  ) async {
+    let runner = mlxRunner
+    guard let runner else {
+      output = "The reticle-mlx helper is missing from the app bundle."
+      return
+    }
+
+    isBusy = true
+    output = progressMessage
+    let result = await runner.run(command, environment: environment)
+    output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+    isBusy = false
+  }
+
   private func parseInstalledConfiguration(from output: String) {
     for line in output.split(separator: "\n") {
       if line.hasPrefix("model: ") {
@@ -138,7 +234,18 @@ final class ServiceController: ObservableObject {
         installedFormat = String(line.dropFirst("FIM format: ".count))
       } else if line.hasPrefix("endpoint: ") {
         endpoint = String(line.dropFirst("endpoint: ".count)) + "/v1"
+      } else if line.hasPrefix("runtime: "),
+        let runtime = ModelRuntime(rawValue: String(line.dropFirst("runtime: ".count)))
+      {
+        installedRuntime = runtime
       }
+    }
+  }
+
+  private func runner(for runtime: ModelRuntime) -> CommandRunner? {
+    switch runtime {
+    case .mlxLM: mlxRunner
+    case .mtplx: mtplxRunner
     }
   }
 }

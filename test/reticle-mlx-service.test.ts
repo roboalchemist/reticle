@@ -58,7 +58,7 @@ describe("Reticle MLX service helper", () => {
     expect(invalidCache.status).toBe(1);
     expect(invalidCache.stderr).toContain("must be a positive integer");
     expect(invalidFormat.status).toBe(1);
-    expect(invalidFormat.stderr).toContain("must be seed, qwen, or openai");
+    expect(invalidFormat.stderr).toContain("must be codestral, seed, qwen, or openai");
   });
 
   it("loads the installed model format and verifies real FIM behavior", () => {
@@ -67,9 +67,11 @@ describe("Reticle MLX service helper", () => {
     const bin = join(home, "bin");
     const venvBin = join(home, ".reticle", "mlx", "venv", "bin");
     const launchAgents = join(home, "Library", "LaunchAgents");
+    const codeSettings = join(home, "Library", "Application Support", "Code", "User");
     mkdirSync(bin, { recursive: true });
     mkdirSync(venvBin, { recursive: true });
     mkdirSync(launchAgents, { recursive: true });
+    mkdirSync(codeSettings, { recursive: true });
 
     writeExecutable(join(venvBin, "mlx_lm.server"), "#!/bin/sh\nexit 0\n");
     writeExecutable(
@@ -83,6 +85,16 @@ fi
 `,
     );
     writeExecutable(join(bin, "launchctl"), "#!/bin/sh\nexit 0\n");
+    writeExecutable(
+      join(bin, "code"),
+      `#!/bin/sh
+case "$1" in
+  --list-extensions) printf '%s\\n' 'roboalchemist.reticle@0.7.1' ;;
+  --install-extension) printf '%s\\n' 'Extension installed.' ;;
+  *) exit 2 ;;
+esac
+`,
+    );
     writeExecutable(
       join(bin, "plutil"),
       `#!/bin/sh
@@ -136,11 +148,22 @@ esac
       join(launchAgents, "io.github.roboalchemist.reticle-mlx.plist"),
       "<plist><dict><key>ProgramArguments</key><array/></dict></plist>\n",
     );
+    writeFileSync(
+      join(codeSettings, "settings.json"),
+      `{
+  // Reticle's user-level settings
+  "reticle.baseURL": "http://127.0.0.1:8124/v1",
+  "reticle.model": "example/seed-mlx",
+  "reticle.fimFormat": "qwen",
+}
+`,
+    );
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       HOME: home,
       PATH: `${bin}:/usr/bin:/bin`,
+      RETICLE_CODE_BIN: join(bin, "code"),
     };
     for (const name of [
       "RETICLE_MLX_MODEL",
@@ -169,5 +192,28 @@ esac
     expect(result.stdout).toContain("PASS health: status=ok");
     expect(result.stdout).toContain("PASS FIM probe: suffixOnlyIdentifier");
     expect(result.stdout).toContain("Reticle MLX doctor: pass");
+
+    const extensionInstall = spawnSync(
+      join(process.cwd(), "scripts", "reticle-mlx"),
+      ["vscode-install"],
+      { encoding: "utf8", env },
+    );
+    expect(extensionInstall.status).toBe(0);
+    expect(extensionInstall.stdout).toContain("Extension installed.");
+
+    const extensionDoctor = spawnSync(
+      join(process.cwd(), "scripts", "reticle-mlx"),
+      ["vscode-doctor"],
+      { encoding: "utf8", env },
+    );
+    expect(extensionDoctor.status).toBe(0);
+    expect(extensionDoctor.stderr).toBe("");
+    expect(extensionDoctor.stdout).toContain("PASS extension: roboalchemist.reticle@0.7.1");
+    expect(extensionDoctor.stdout).toContain("PASS VS Code setting: reticle.baseURL");
+    expect(extensionDoctor.stdout).toContain("PASS endpoint: http://127.0.0.1:8124/health");
+    expect(extensionDoctor.stdout).toContain(
+      "PASS extension-shaped FIM probe: suffixOnlyIdentifier",
+    );
+    expect(extensionDoctor.stdout).toContain("Reticle VS Code doctor: pass");
   });
 });

@@ -26,9 +26,14 @@ mkdir -p "${contents_path}/MacOS" "${contents_path}/Resources" "${build_root}/Ap
 
 cp "${binary_dir}/ReticleMLX" "${contents_path}/MacOS/ReticleMLX"
 cp "${repo_root}/scripts/reticle-mlx" "${contents_path}/Resources/reticle-mlx"
+cp "${repo_root}/scripts/mtplx-service" "${contents_path}/Resources/reticle-mtplx"
 cp "${repo_root}/media/menu-bar-icon@2x.png" "${contents_path}/Resources/MenuBarIcon.png"
+cp "${repo_root}/media/app-icon-1024.png" "${contents_path}/Resources/AppLogo.png"
 cp "${package_dir}/Info.plist" "${contents_path}/Info.plist"
-chmod 755 "${contents_path}/MacOS/ReticleMLX" "${contents_path}/Resources/reticle-mlx"
+chmod 755 \
+  "${contents_path}/MacOS/ReticleMLX" \
+  "${contents_path}/Resources/reticle-mlx" \
+  "${contents_path}/Resources/reticle-mtplx"
 
 sparkle_framework="$(
   find "${package_dir}/.build/artifacts/sparkle/Sparkle" \
