@@ -2,6 +2,11 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.4.1
+
+- Use `Option+\` as the default macOS shortcut for forced inline completion.
+- Document automatic triggering, manual triggering, and whole-block `Tab` acceptance together.
+
 ## 0.4.0
 
 - Add bounded multi-line ghost-text completions with one-press `Tab` acceptance.

@@ -23,6 +23,7 @@ const expectedSettingIds = [
 
 interface ExtensionManifest {
   contributes?: {
+    keybindings?: Array<{ command?: string; key?: string; mac?: string; when?: string }>;
     configuration?: {
       properties?: Record<string, { default?: unknown; scope?: string }>;
     };
@@ -112,6 +113,20 @@ suite("Reticle extension host", () => {
     assert.deepEqual(Object.keys(properties).sort(), [...expectedSettingIds].sort());
     assert.equal(properties["reticle.enableAutoTrigger"]?.default, true);
     assert.equal(properties["reticle.enableAutoTrigger"]?.scope, "resource");
+    assert.ok(
+      manifest.contributes?.keybindings?.some(
+        (binding) =>
+          binding.command === "reticle.triggerCompletion" &&
+          binding.key === "ctrl+alt+space" &&
+          binding.mac === "alt+\\" &&
+          binding.when === "editorTextFocus && !editorHasSelection",
+      ),
+      "forced completion must use Option+\\ on macOS",
+    );
+    assert.ok(
+      (await vscode.commands.getCommands(true)).includes("reticle.triggerCompletion"),
+      "the forced-completion command must be registered",
+    );
 
     const registered = configuration();
     for (const id of expectedSettingIds) {

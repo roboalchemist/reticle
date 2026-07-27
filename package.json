@@ -2,7 +2,7 @@
   "name": "reticle",
   "displayName": "Reticle",
   "description": "Local-first BYOK FIM autocomplete with multi-line ghost text for OpenAI-compatible completion endpoints.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "roboalchemist",
   "license": "MIT",
   "private": false,
@@ -69,7 +69,7 @@
       {
         "command": "reticle.triggerCompletion",
         "key": "ctrl+alt+space",
-        "mac": "cmd+alt+space",
+        "mac": "alt+\\",
         "when": "editorTextFocus && !editorHasSelection"
       }
     ],
