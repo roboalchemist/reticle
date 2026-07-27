@@ -2,6 +2,12 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.4.2
+
+- Stop automatic completion from immediately retriggering after a Reticle suggestion is accepted.
+- Re-enable automatic completion on the user's next edit while keeping manual forced completion available.
+- Add unit and live extension-host regression coverage for the acceptance loop.
+
 ## 0.4.1
 
 - Use `Option+\` as the default macOS shortcut for forced inline completion.

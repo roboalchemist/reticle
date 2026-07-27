@@ -59,6 +59,7 @@ describe("inline provider request coordination", () => {
     settings.enableAutoTrigger = true;
     settings.languageAllowlist = [];
     settings.languageDenylist = [];
+    settings.maxLines = 8;
     settings.multiFileContext = false;
     showWarningMessage.mockReset().mockResolvedValue(undefined);
   });
@@ -217,6 +218,71 @@ describe("inline provider request coordination", () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.insertText).toBe("const name = getName();\n  return name;");
+    provider.dispose();
+  });
+
+  it("suppresses post-accept auto-triggering until the next real edit", async () => {
+    const { InlineProvider } = await import("../src/completion/InlineProvider.js");
+    const fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response('{"choices":[{"text":"first();\\n  second();"}]}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const provider = new InlineProvider({ fetch });
+    const offered = await provider.provideInlineCompletionItems(
+      document as never,
+      position as never,
+      { triggerKind: 1 } as never,
+      token,
+    );
+    const insertion = offered.items[0]?.insertText;
+    expect(insertion).toBe("first();\n  second();");
+    if (typeof insertion !== "string") {
+      throw new TypeError("Expected a string insertion.");
+    }
+
+    expect(
+      provider.recordDocumentChange(
+        { uri: document.uri, version: 2 } as never,
+        [{ rangeOffset: 7, text: insertion }] as never,
+      ),
+    ).toBe(true);
+    await expect(
+      provider.provideInlineCompletionItems(
+        { ...document, version: 2 } as never,
+        position as never,
+        { triggerKind: 1 } as never,
+        token,
+      ),
+    ).resolves.toEqual({ items: [] });
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    const manual = await provider.provideInlineCompletionItems(
+      { ...document, version: 2 } as never,
+      position as never,
+      { triggerKind: 0 } as never,
+      token,
+    );
+    expect(manual.items).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    expect(
+      provider.recordDocumentChange(
+        { uri: document.uri, version: 3 } as never,
+        [{ rangeOffset: 7 + insertion.length, text: "x" }] as never,
+      ),
+    ).toBe(false);
+    const afterEdit = await provider.provideInlineCompletionItems(
+      { ...document, version: 3 } as never,
+      position as never,
+      { triggerKind: 1 } as never,
+      token,
+    );
+    expect(afterEdit.items).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(3);
     provider.dispose();
   });
 

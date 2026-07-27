@@ -223,6 +223,27 @@ suite("Reticle extension host", () => {
       );
       assert.equal(result.items.length, 1);
       assert.equal(result.items[0]?.insertText, "suffixOnlyIdentifier");
+
+      const insertion = result.items[0]?.insertText;
+      assert.equal(typeof insertion, "string");
+      const edit = new vscode.WorkspaceEdit();
+      edit.insert(document.uri, position, insertion);
+      assert.equal(await vscode.workspace.applyEdit(edit), true);
+      const afterAcceptance = document.positionAt(prefix.length + insertion.length);
+      const repeat = await api.provideInlineCompletionItems(
+        document,
+        afterAcceptance,
+        {
+          triggerKind: vscode.InlineCompletionTriggerKind.Automatic,
+          selectedCompletionInfo: undefined,
+        },
+        new vscode.CancellationTokenSource().token,
+      );
+      assert.equal(
+        repeat.items.length,
+        0,
+        "accepting Reticle output must suppress the immediate automatic retrigger",
+      );
     } finally {
       for (const [key, value] of Object.entries(previous)) {
         await globalConfiguration.update(key, value, vscode.ConfigurationTarget.Global);

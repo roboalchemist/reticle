@@ -35,6 +35,12 @@ interface DocumentRequestState {
   version: number;
 }
 
+interface OfferedCompletion {
+  documentVersion: number;
+  insertion: string;
+  rangeOffset: number;
+}
+
 function documentContext(
   document: vscode.TextDocument,
   position: vscode.Position,
@@ -52,10 +58,33 @@ function documentContext(
 
 export class InlineProvider implements vscode.InlineCompletionItemProvider, vscode.Disposable {
   private readonly requests = new Map<string, DocumentRequestState>();
+  private readonly offeredCompletions = new Map<string, OfferedCompletion>();
+  private readonly suppressAutomaticUntilEdit = new Set<string>();
   private readonly backoff = new ErrorBackoff();
   private activeNetworkRequests = 0;
 
   constructor(private readonly options: InlineProviderOptions = {}) {}
+
+  recordDocumentChange(
+    document: Pick<vscode.TextDocument, "uri" | "version">,
+    changes: readonly Pick<vscode.TextDocumentContentChangeEvent, "rangeOffset" | "text">[],
+  ): boolean {
+    const documentScope = document.uri.toString();
+    const offered = this.offeredCompletions.get(documentScope);
+    this.offeredCompletions.delete(documentScope);
+    const accepted =
+      offered !== undefined &&
+      document.version === offered.documentVersion + 1 &&
+      changes.some(
+        (change) => change.rangeOffset === offered.rangeOffset && change.text === offered.insertion,
+      );
+    if (accepted) {
+      this.suppressAutomaticUntilEdit.add(documentScope);
+    } else {
+      this.suppressAutomaticUntilEdit.delete(documentScope);
+    }
+    return accepted;
+  }
 
   async provideInlineCompletionItems(
     document: vscode.TextDocument,
@@ -64,9 +93,16 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
     token: vscode.CancellationToken,
   ): Promise<vscode.InlineCompletionList> {
     const documentScope = document.uri.toString();
+    const manual = context.triggerKind === vscode.InlineCompletionTriggerKind.Invoke;
     const state = this.getRequestState(documentScope);
     this.cancelPendingRequest(documentScope);
     const requestVersion = ++state.version;
+    if (!manual && this.suppressAutomaticUntilEdit.has(documentScope)) {
+      state.debouncer.dispose();
+      this.requests.delete(documentScope);
+      return { items: [] };
+    }
+    this.offeredCompletions.delete(documentScope);
     const configuration = vscode.workspace.getConfiguration("reticle");
     const enabled = configuration.get<unknown>("enableAutoTrigger", true);
     if (enabled === false) {
@@ -102,7 +138,6 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
       this.options.onStatusChange?.("error", message);
       return { items: [] };
     }
-    const manual = context.triggerKind === vscode.InlineCompletionTriggerKind.Invoke;
     if (!this.backoff.canRequest() && !manual) {
       this.requests.delete(documentScope);
       const seconds = Math.max(1, Math.ceil(this.backoff.retryInMs() / 1_000));
@@ -170,6 +205,11 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
       if (!insertion) {
         return { items: [] };
       }
+      this.offeredCompletions.set(documentScope, {
+        documentVersion,
+        insertion,
+        rangeOffset: document.offsetAt(position),
+      });
       return {
         items: [new vscode.InlineCompletionItem(insertion, new vscode.Range(position, position))],
       };
@@ -238,5 +278,7 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
 
   dispose(): void {
     this.cancelPendingRequest();
+    this.offeredCompletions.clear();
+    this.suppressAutomaticUntilEdit.clear();
   }
 }
