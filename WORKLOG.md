@@ -1,5 +1,10 @@
 # Worklog
 
+## 2026-07-27 — Idempotent registry retries
+
+- A post-release Open VSX retry correctly found that 0.5.0 was already published, but `ovsx` returned a failure status and left a misleading red workflow run.
+- Check each registry's exact version endpoint before publishing. Existing immutable versions now produce a successful no-op, while missing versions continue through the credential and publication path.
+
 ## 2026-07-27 — Seed-Coder MLX backend research and integration
 
 - Searched Hugging Face and upstream runtime work for Seed-Coder 8B Base MLX, Core ML/ANE, EAGLE, EAGLE3, Medusa, MTP, and draft-model artifacts. No public Seed-specific speculative head, compatible small draft, or ANE artifact was available.

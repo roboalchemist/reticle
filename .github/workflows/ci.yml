@@ -61,17 +61,33 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
+          publisher="$(node -p "require('./package.json').publisher")"
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          package_url="https://marketplace.visualstudio.com/_apis/public/gallery/publishers/$publisher/vsextensions/$name/$version/vspackage"
+          if curl --fail --silent --show-error "$package_url" >/dev/null; then
+            echo "$publisher.$name $version is already published to the VS Code Marketplace."
+            exit 0
+          fi
           if [ -z "$VSCE_PAT" ]; then
             echo "VSCE_PAT is not configured; skipping Marketplace publication."
             exit 0
           fi
-          npx --no-install vsce publish --packagePath "reticle-$(node -p "require('./package.json').version").vsix"
+          npx --no-install vsce publish --packagePath "reticle-$version.vsix"
       - name: Publish to Open VSX
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
+          publisher="$(node -p "require('./package.json').publisher")"
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if curl --fail --silent --show-error \
+            "https://open-vsx.org/api/$publisher/$name/$version" >/dev/null; then
+            echo "$publisher.$name $version is already published to Open VSX."
+            exit 0
+          fi
           if [ -z "$OVSX_PAT" ]; then
             echo "OVSX_PAT is not configured; skipping Open VSX publication."
             exit 0
           fi
-          npx --no-install ovsx publish "reticle-$(node -p "require('./package.json').version").vsix"
+          npx --no-install ovsx publish "reticle-$version.vsix"
