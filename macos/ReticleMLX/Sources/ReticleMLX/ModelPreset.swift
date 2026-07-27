@@ -48,7 +48,7 @@ struct ModelPreset: Identifiable, Hashable {
     badge: "Recommended"
   )
 
-  static let qwenCoder1_5B = ModelPreset(
+  static let qwenCoder1Point5B = ModelPreset(
     id: "qwen-coder-1.5b",
     name: "Qwen2.5-Coder 1.5B",
     tagline: "Fastest and lightest",
@@ -142,7 +142,7 @@ struct ModelPreset: Identifiable, Hashable {
     badge: nil
   )
 
-  static let suggested = [qwenCoder1_5B, qwenCoder3B, qwen35MTPLX, seedCoder, codestral22B]
+  static let suggested = [qwenCoder1Point5B, qwenCoder3B, qwen35MTPLX, seedCoder, codestral22B]
   static let all = suggested + [custom]
 
   var formattedDownloadSize: String {
@@ -191,6 +191,7 @@ struct ServiceConfiguration: Equatable {
   var vscodeEnvironment: [String: String] {
     [
       "RETICLE_MLX_MODEL": requestModel,
+      "RETICLE_MLX_API_MODEL": requestModel,
       "RETICLE_MLX_FIM_FORMAT": fimFormat,
       "RETICLE_MLX_PORT": String(port),
     ]
@@ -215,11 +216,7 @@ struct ServiceConfiguration: Equatable {
     if let model = defaults.string(forKey: "model"), !model.isEmpty {
       configuration.model = model
     }
-    if let requestModel = defaults.string(forKey: "requestModel"), !requestModel.isEmpty {
-      configuration.requestModel = requestModel
-    } else {
-      configuration.requestModel = configuration.model
-    }
+    let savedRequestModel = defaults.string(forKey: "requestModel")
     if let format = defaults.string(forKey: "fimFormat"), !format.isEmpty {
       configuration.fimFormat = format
     }
@@ -227,6 +224,16 @@ struct ServiceConfiguration: Equatable {
       let runtime = ModelRuntime(rawValue: runtimeName)
     {
       configuration.runtime = runtime
+    }
+    if let savedRequestModel, !savedRequestModel.isEmpty {
+      configuration.requestModel = savedRequestModel
+    } else if configuration.runtime == .mtplx {
+      configuration.requestModel =
+        ModelPreset.suggested.first {
+          $0.runtime == .mtplx && $0.model == configuration.model
+        }?.requestModel ?? ModelPreset.qwen35MTPLX.requestModel
+    } else {
+      configuration.requestModel = "default_model"
     }
     let port = defaults.integer(forKey: "port")
     if port > 0 {

@@ -2,6 +2,22 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.8.0
+
+- Replace the model dropdown with five always-visible cards for Qwen 1.5B,
+  Qwen 3B, Qwen3.5 9B MTPLX, Seed-Coder 8B, and Codestral 22B, including
+  runtime, size, memory floor, use case, and relative score details.
+- Add exact byte-progress downloads with transfer rate, ETA, pause, resume, and
+  cancel controls.
+- Route the speculative Qwen3.5 preset through MTPLX while retaining MLX-LM for
+  general and custom models.
+- Add Codestral's native FIM transport and an official-v3-tokenizer overlay for
+  the community MLX conversion.
+- Add one-click VS Code extension installation and a VS Code integration doctor
+  to the macOS app.
+- Use the current Reticle logo in every app surface and size the settings window
+  to show the full model list on a large desktop without a page scrollbar.
+
 ## 0.7.1
 
 - Enable prompt-free automatic update checks and automatic installation in configured Reticle MLX release bundles.

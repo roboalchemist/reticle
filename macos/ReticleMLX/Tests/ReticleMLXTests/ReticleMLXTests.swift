@@ -45,9 +45,9 @@ final class ReticleMLXTests: XCTestCase {
 
   func testSuggestedCatalogCoversSpeedBalanceQualityAndLargeModels() {
     XCTAssertEqual(ModelPreset.suggested.count, 5)
-    XCTAssertEqual(ModelPreset.suggested.first, ModelPreset.qwenCoder1_5B)
+    XCTAssertEqual(ModelPreset.suggested.first, ModelPreset.qwenCoder1Point5B)
     XCTAssertEqual(ModelPreset.seedCoder.qualityScore, 5)
-    XCTAssertEqual(ModelPreset.qwenCoder1_5B.speedScore, 5)
+    XCTAssertEqual(ModelPreset.qwenCoder1Point5B.speedScore, 5)
     XCTAssertEqual(ModelPreset.qwen35MTPLX.runtime, .mtplx)
     XCTAssertEqual(
       ModelPreset.qwen35MTPLX.requestModel,
@@ -98,6 +98,20 @@ final class ReticleMLXTests: XCTestCase {
       )
     )
     XCTAssertTrue(configuration.vscodeSettings.contains("http://127.0.0.1:8000/v1"))
+  }
+
+  @MainActor
+  func testLegacyMLXSettingsMigrateToDefaultModelAlias() {
+    let suite = "ReticleMLXTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    defaults.set(ModelPreset.codestral22B.model, forKey: "model")
+    defaults.set("codestral", forKey: "fimFormat")
+
+    let configuration = ServiceConfiguration.load(from: defaults)
+
+    XCTAssertEqual(configuration.runtime, .mlxLM)
+    XCTAssertEqual(configuration.requestModel, "default_model")
   }
 
   func testDownloadOutputParserReadsWorkerAndByteProgress() {

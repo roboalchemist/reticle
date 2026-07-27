@@ -6,17 +6,25 @@ Requirements are Apple Silicon, macOS 14 or newer, and at least 16 GB unified me
 
 ## Managed install
 
-Install the public Homebrew package, then run the service helper:
+The signed Reticle MLX menu-bar app includes this runtime as a model card. Its
+**Download** action uses MTPLX's native byte-progress stream and supports real
+pause, resume, and cancel; **Apply & Restart** installs the LaunchAgent and
+stops MLX-LM first.
+
+For a headless setup, install the public Homebrew package:
 
 ```bash
 brew install roboalchemist/tap/reticle-mtplx
+reticle-mtplx download
 reticle-mtplx install
+reticle-mtplx doctor
 ```
 
 The helper:
 
 1. installs the current official Homebrew formula;
-2. downloads `Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed`;
+2. downloads or resumes `Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed` under
+   `~/.mtplx/models`;
 3. creates `~/Library/LaunchAgents/io.github.roboalchemist.reticle.mtplx.plist`;
 4. starts MTPLX on `127.0.0.1:8000`; and
 5. waits until `GET /health` succeeds and runs a Reticle-shaped FIM warmup.
@@ -28,6 +36,7 @@ To run directly from a source checkout instead, replace `reticle-mtplx` in the e
 ## Monitor and operate
 
 ```bash
+reticle-mtplx model-status
 reticle-mtplx status
 reticle-mtplx health
 reticle-mtplx monitor
@@ -39,7 +48,13 @@ reticle-mtplx stop
 reticle-mtplx start
 ```
 
-`status` gives a compact launchd and health summary. `health` prints the complete server report. `monitor` uses MTPLX's live `/metrics` view, and `dashboard` opens the local dashboard. `doctor` reads the installed LaunchAgent configuration, checks launchd and `/health`, and runs a suffix-dependent FIM request against the configured port. Logs are stored under `~/.mtplx/logs/`.
+`model-status` verifies that the cached checkpoint has a runnable native-MTP
+contract and sidecar. `status` gives a compact launchd and health summary.
+`health` prints the complete server report. `monitor` uses MTPLX's live
+`/metrics` view, and `dashboard` opens the local dashboard. `doctor` reads the
+installed LaunchAgent configuration, checks launchd and `/health`, verifies
+native MTP mode, and runs a suffix-dependent FIM request against the configured
+port. Logs are stored under `~/.mtplx/logs/`.
 
 Custom install settings are remembered from the LaunchAgent. For example, after `MTPLX_PORT=8010 reticle-mtplx install`, later `status`, `doctor`, `monitor`, and lifecycle commands use port 8010 without requiring the environment variable again. An explicitly supplied environment variable still overrides the installed value for that command.
 

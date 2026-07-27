@@ -10,11 +10,13 @@ const { settings, showWarningMessage } = vi.hoisted(() => ({
     enableAutoTrigger: true,
     extraHeaders: {},
     fimFormat:
-      process.env.RETICLE_INTEGRATION_FIM_FORMAT === "qwen"
-        ? ("qwen" as const)
-        : process.env.RETICLE_INTEGRATION_FIM_FORMAT === "seed"
-          ? ("seed" as const)
-          : ("openai" as const),
+      process.env.RETICLE_INTEGRATION_FIM_FORMAT === "codestral"
+        ? ("codestral" as const)
+        : process.env.RETICLE_INTEGRATION_FIM_FORMAT === "qwen"
+          ? ("qwen" as const)
+          : process.env.RETICLE_INTEGRATION_FIM_FORMAT === "seed"
+            ? ("seed" as const)
+            : ("openai" as const),
     languageAllowlist: [],
     languageDenylist: [],
     maxLines: 8,

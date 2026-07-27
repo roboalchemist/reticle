@@ -271,7 +271,7 @@ struct SettingsView: View {
     case .completed:
       return "Download complete"
     case .cancelled:
-      return "Download cancelled. Completed files and resumable partial data were preserved."
+      return "Download cancelled. Completed files were preserved."
     case .failed:
       return progress.error ?? "Download failed"
     }

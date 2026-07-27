@@ -430,8 +430,14 @@ run_vscode_doctor() {
 
   check_vscode_settings || vscode_ok=0
 
-  if health_response="$(curl -fsS --max-time 5 "${base_url}/health")" &&
-    [ "$(printf '%s' "${health_response}" | json_value status || true)" = "ok" ]; then
+  if health_response="$(curl -fsS --max-time 5 "${base_url}/health")"; then
+    health_status="$(printf '%s' "${health_response}" | json_value status || true)"
+    health_ok="$(printf '%s' "${health_response}" | json_value ok || true)"
+  else
+    health_status=""
+    health_ok=""
+  fi
+  if [ "${health_status}" = "ok" ] || [ "${health_ok}" = "true" ]; then
     printf 'PASS endpoint: %s/health\n' "${base_url}"
   else
     printf 'FAIL endpoint: GET %s/health failed\n' "${base_url}" >&2

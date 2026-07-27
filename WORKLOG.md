@@ -1,5 +1,38 @@
 # Worklog
 
+## 2026-07-27 — Hybrid model manager and verified downloads
+
+- Replaced the preset dropdown with five full model cards and separate Download
+  and Select actions. Runtime, approximate size, minimum memory, purpose, and
+  relative quality/speed/memory scores now remain visible for comparison.
+- Implemented byte-accurate Hugging Face progress for MLX-LM models and consumed
+  MTPLX 2.3.0's native newline-delimited progress stream. Pause and resume send
+  `SIGSTOP`/`SIGCONT` to the real worker; cancel terminates it while preserving
+  completed files. MTPLX also resumes partial files natively.
+- Use a hybrid runtime: MLX-LM remains the general loader for Qwen2.5, Seed, and
+  Codestral, while Qwen3.5 9B Optimized Speed is routed through MTPLX's verified
+  native-MTP path. Installing one runtime stops the other to avoid unified-memory
+  contention.
+- The first Codestral health check loaded successfully but repeated the suffix.
+  Its community MLX conversion ships a Transformers v1 tokenizer whose IDs
+  11–13 are labeled as generic controls, while Mistral's reference v3 tokenizer
+  maps them to `[PREFIX]`, `[MIDDLE]`, and `[SUFFIX]`. Reticle now prepares a
+  small official-tokenizer overlay with symlinks to the cached weights and uses
+  MLX-LM's `default_model` alias so requests cannot dynamically reload the broken
+  source tokenizer.
+- Codestral generation intentionally begins reproducing the supplied suffix.
+  Stop at the first nonempty suffix line and remove that stop sequence from the
+  response; when the suffix starts with a newline, omit that stop so legitimate
+  multi-line output is not truncated. A newline-only stop broke the live
+  multi-line provider test.
+- Re-ran managed, suffix-dependent doctors against all five cards. Qwen 1.5B,
+  Qwen 3B, Seed 8B, and Codestral 22B passed through MLX-LM 0.31.1/MLX 0.30.5;
+  Qwen3.5 9B passed with `generation_mode=mtp` and `mtp_enabled=true` through
+  MTPLX 2.3.0.
+- Added one-click extension installation and a VS Code doctor that checks the
+  CLI, installed extension, user settings, endpoint health, and a live
+  extension-shaped FIM insertion.
+
 ## 2026-07-27 — Prompt-free automatic updates
 
 - Sparkle normally asks permission on the second launch before scheduling update checks. That interaction is easy to miss in a background-only accessory app.

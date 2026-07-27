@@ -25,9 +25,9 @@ const SEED_FIM_MIDDLE = "<[fim-middle]>";
 const CODESTRAL_FIM_PREFIX = "[PREFIX]";
 const CODESTRAL_FIM_SUFFIX = "[SUFFIX]";
 
-function codestralStopSequence(suffix: string): string {
+function codestralStopSequences(suffix: string): string[] {
   const firstLine = suffix.split(/\r?\n/, 1)[0] ?? "";
-  return firstLine.length > 0 ? firstLine : "\n";
+  return firstLine.length > 0 ? [firstLine, "</s>"] : ["</s>"];
 }
 
 /** Build an OpenAI completions request with the configured FIM serialization. */
@@ -54,7 +54,6 @@ export function buildCompletionsRequest(
       prompt: `${SEED_FIM_SUFFIX}${suffix}${SEED_FIM_PREFIX}${prefix}${SEED_FIM_MIDDLE}`,
       suffix: "",
       max_tokens: settings.maxTokens,
-      stop: [codestralStopSequence(suffix), "</s>"],
       temperature: settings.temperature,
       stream: true,
     };
@@ -65,6 +64,7 @@ export function buildCompletionsRequest(
       prompt: `${CODESTRAL_FIM_SUFFIX}${suffix}${CODESTRAL_FIM_PREFIX}${prefix}`,
       suffix: "",
       max_tokens: settings.maxTokens,
+      stop: codestralStopSequences(suffix),
       temperature: settings.temperature,
       stream: true,
     };

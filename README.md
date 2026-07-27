@@ -55,25 +55,32 @@ For an offline install, download the VSIX from the [latest GitHub release](https
 ## Reticle MLX for macOS
 
 Reticle MLX is the native menu-bar companion for Apple Silicon. It installs,
-starts, stops, monitors, and switches MLX-LM completion models without keeping a
-terminal open. The app is Developer ID signed, hardened, notarized by Apple, and
-distributed from the [latest GitHub release](https://github.com/roboalchemist/reticle-mlx/releases/latest).
+starts, stops, monitors, and switches local completion models without keeping a
+terminal open. It uses MLX-LM for general FIM models and MTPLX for the verified
+speculative Qwen 3.5 model. The app is Developer ID signed, hardened, notarized
+by Apple, and distributed from the
+[latest GitHub release](https://github.com/roboalchemist/reticle-mlx/releases/latest).
 
 ```bash
 brew install --cask roboalchemist/tap/reticle-mlx
 open -g -a "Reticle MLX"
 ```
 
-Open **Settings…** from the menu-bar sparkle and choose:
+Open **Settings…** from the menu-bar sparkle. The model list shows download
+size, minimum memory, runtime, and relative quality/speed/memory scores:
 
-- **Seed-Coder 8B — quality:** the recommended 3.6 GB mixed-bit model.
-- **Qwen2.5-Coder 3B — speed:** lower latency and memory use.
-- **Custom MLX model:** any compatible Hugging Face ID or local model path,
-  paired with Seed, Qwen, or OpenAI FIM transport.
+- **Qwen2.5-Coder 1.5B:** fastest and lightest;
+- **Qwen2.5-Coder 3B:** balanced speed and quality;
+- **Qwen3.5 9B MTPLX:** speculative low-latency completion;
+- **Seed-Coder 8B:** best quality in Reticle's tested completion set; and
+- **Codestral 22B:** the large FIM-native option for high-memory Macs.
 
-Click **Install Model & Service**, then **Copy VS Code Settings**. The app keeps
-the service loopback-only, shows health in the menu bar, exposes logs and a real
-FIM doctor, and can start at login.
+Each card has separate **Download** and **Select** actions. Downloads report
+exact byte progress and can be paused, resumed, or cancelled without discarding
+completed files. Click **Apply & Restart**, then use **Install VS Code
+Extension** and **VS Code Doctor**. The app keeps the selected service
+loopback-only, shows health in the menu bar, exposes logs and a real
+suffix-dependent doctor, and can start at login.
 
 The same manager is available headlessly:
 
@@ -85,7 +92,8 @@ reticle-mlx monitor
 ```
 
 See the [complete Reticle MLX guide](docs/providers/mlx.md) for model presets,
-custom models, measured performance, migration, and lifecycle commands.
+download storage, the MLX-LM/MTPLX split, measured performance, migration, and
+lifecycle commands.
 
 ## Quick start with MTPLX
 
@@ -178,7 +186,7 @@ Compatible output has a `choices[0].text` insertion like `a + b`. Once that pass
 | `reticle.model`             |                      empty | Exact model ID from the server's `/v1/models` response.                                         |
 | `reticle.apiKey`            |                      empty | Optional on loopback; required for remote endpoints.                                            |
 | `reticle.extraHeaders`      |                       `{}` | Additional string-valued request headers.                                                       |
-| `reticle.fimFormat`         |                   `openai` | `openai` sends a separate suffix; `qwen` and `seed` embed their model-native FIM markers.       |
+| `reticle.fimFormat`         |                   `openai` | `openai` sends a separate suffix; `codestral`, `qwen`, and `seed` embed native FIM markers.     |
 | `reticle.maxLines`          |                        `8` | Maximum lines displayed in one inline completion (1–64).                                        |
 | `reticle.maxTokens`         |                      `256` | Maximum generated tokens (1–2048).                                                              |
 | `reticle.temperature`       |                        `0` | Sampling temperature (0–2).                                                                     |
@@ -193,7 +201,7 @@ Reticle requires HTTPS and an API key for non-loopback endpoints. It never logs 
 ## Provider guides
 
 - [Ollama](docs/providers/ollama.md) — recommended first setup; its OpenAI compatibility documents `suffix`.
-- [Reticle MLX](docs/providers/mlx.md) — signed macOS menu-bar app and model-agnostic MLX-LM service manager.
+- [Reticle MLX](docs/providers/mlx.md) — signed macOS menu-bar app and hybrid MLX-LM/MTPLX model manager.
 - [MTPLX](docs/providers/mtplx.md) — managed Apple Silicon service with health, metrics, dashboard, and Qwen PSM transport.
 - [llama.cpp](docs/providers/llama-cpp.md) — excellent FIM runtime, with an important `/infill` versus `/v1/completions` caveat.
 - [OMLX](docs/providers/omlx.md) — Apple Silicon serving and the archive's fastest Mac-local model result.

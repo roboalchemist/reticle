@@ -89,7 +89,7 @@ fi
       join(bin, "code"),
       `#!/bin/sh
 case "$1" in
-  --list-extensions) printf '%s\\n' 'roboalchemist.reticle@0.7.1' ;;
+  --list-extensions) printf '%s\\n' 'roboalchemist.reticle@0.8.0' ;;
   --install-extension) printf '%s\\n' 'Extension installed.' ;;
   *) exit 2 ;;
 esac
@@ -208,12 +208,39 @@ esac
     );
     expect(extensionDoctor.status).toBe(0);
     expect(extensionDoctor.stderr).toBe("");
-    expect(extensionDoctor.stdout).toContain("PASS extension: roboalchemist.reticle@0.7.1");
+    expect(extensionDoctor.stdout).toContain("PASS extension: roboalchemist.reticle@0.8.0");
     expect(extensionDoctor.stdout).toContain("PASS VS Code setting: reticle.baseURL");
     expect(extensionDoctor.stdout).toContain("PASS endpoint: http://127.0.0.1:8124/health");
     expect(extensionDoctor.stdout).toContain(
       "PASS extension-shaped FIM probe: suffixOnlyIdentifier",
     );
     expect(extensionDoctor.stdout).toContain("Reticle VS Code doctor: pass");
+
+    writeExecutable(
+      join(bin, "curl"),
+      `#!/bin/sh
+case "$*" in
+  *http://127.0.0.1:8124/health*)
+    printf '%s\\n' '{"ok":true}'
+    ;;
+  *http://127.0.0.1:8124/v1/completions*)
+    printf '%s\\n' '{"choices":[{"text":"suffixOnlyIdentifier"}]}'
+    ;;
+  *)
+    exit 22
+    ;;
+esac
+`,
+    );
+    const mtplxShapedExtensionDoctor = spawnSync(
+      join(process.cwd(), "scripts", "reticle-mlx"),
+      ["vscode-doctor"],
+      { encoding: "utf8", env },
+    );
+    expect(mtplxShapedExtensionDoctor.status).toBe(0);
+    expect(mtplxShapedExtensionDoctor.stderr).toBe("");
+    expect(mtplxShapedExtensionDoctor.stdout).toContain(
+      "PASS endpoint: http://127.0.0.1:8124/health",
+    );
   });
 });
