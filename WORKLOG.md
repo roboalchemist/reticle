@@ -7,6 +7,7 @@
 - Added a native Swift menu-bar application with health polling, lifecycle controls, model settings, launch-at-login support, log access, a real doctor probe, and matching VS Code configuration on the clipboard.
 - Added deterministic application-bundle assembly, Developer ID hardened-runtime signing, Apple notarization, ticket stapling, ZIP/DMG packaging, and Gatekeeper verification scripts.
 - Preserve the legacy Seed runtime and logs during migration, but remove its LaunchAgent only after the replacement service becomes healthy so both cannot claim port 8001.
+- Both Apple submissions were accepted and stapled, but the final Perl-backed `shasum` inherited an invalid `C.UTF-8` locale on the release Mac. Use OpenSSL for release digests so a completed notarization cannot be followed by a locale-only false failure.
 
 ## 2026-07-27 — Idempotent registry retries
 
