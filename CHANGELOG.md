@@ -2,6 +2,13 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.5.0
+
+- Add Seed-Coder's native suffix-prefix-middle FIM serialization.
+- Add a managed, loopback-only Seed-Coder + MLX-LM service for Apple Silicon with prompt caching, health checks, monitoring, logs, and a real FIM doctor probe.
+- Publish and document a 3.6 GB mixed 3/4-bit Seed-Coder 8B conversion that reaches 93.2 tokens/s and 134–146 ms cached identifier completions on a 128 GB M3 Max.
+- Document why no current Seed EAGLE, MTP, or ANE path beats the tested MLX setup.
+
 ## 0.4.2
 
 - Stop automatic completion from immediately retriggering after a Reticle suggestion is accepted.

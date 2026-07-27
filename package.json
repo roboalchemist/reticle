@@ -2,7 +2,7 @@
   "name": "reticle",
   "displayName": "Reticle",
   "description": "Local-first BYOK FIM autocomplete with multi-line ghost text for OpenAI-compatible completion endpoints.",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "publisher": "roboalchemist",
   "license": "MIT",
   "private": false,
@@ -105,11 +105,13 @@
           "default": "openai",
           "enum": [
             "openai",
-            "qwen"
+            "qwen",
+            "seed"
           ],
           "enumDescriptions": [
             "Send prompt and suffix as separate OpenAI completions fields.",
-            "Embed prefix and suffix with Qwen PSM markers for servers such as MTPLX that perform plain prompt completion."
+            "Embed prefix and suffix with Qwen PSM markers for servers such as MTPLX that perform plain prompt completion.",
+            "Embed suffix and prefix with Seed-Coder's native SPM markers for plain-completion servers such as MLX-LM."
           ],
           "description": "Fill-in-the-middle serialization used by the configured server."
         },

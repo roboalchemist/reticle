@@ -1,5 +1,15 @@
 # Worklog
 
+## 2026-07-27 — Seed-Coder MLX backend research and integration
+
+- Searched Hugging Face and upstream runtime work for Seed-Coder 8B Base MLX, Core ML/ANE, EAGLE, EAGLE3, Medusa, MTP, and draft-model artifacts. No public Seed-specific speculative head, compatible small draft, or ANE artifact was available.
+- Benchmarked uniform 4-bit MLX, locally converted mixed 3/4-bit and mixed 4/6-bit MLX, GGUF Q4_K_M, 4-bit KV cache, skip-logsumexp experiments, and llama.cpp N-gram speculation on a 128 GB M3 Max.
+- Selected MLX-LM's `mixed_3_4` recipe: 93.2 tok/s versus 79.5 tok/s for uniform 4-bit MLX and 65.8 tok/s for GGUF Q4_K_M. Incremental MLX prompt caching reduced complete identifier requests to 134–146 ms while reusing 34–35 of 36–37 prompt tokens.
+- Published the tested MIT-licensed derivative as `roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4` with upstream attribution, the exact conversion recipe, benchmark conditions, and limitations.
+- Added Seed's suffix-prefix-middle transport to Reticle and a loopback-only managed MLX-LM LaunchAgent helper with isolated dependencies, bounded prompt caches, warmup, status, monitoring, logs, lifecycle commands, and a suffix-dependent doctor probe.
+- The first clean-environment install exposed that MLX-LM 0.31.1's permissive dependency allowed MLX 0.32.0, which returned healthy and then failed in the generation thread with `There is no Stream(gpu, 0) in current thread`. Pin the benchmarked MLX 0.30.5 pair and have `doctor` verify both installed versions; a green `/health` response alone is insufficient.
+- Avoided 4-bit KV cache and fresh-edit N-gram speculation because both regressed the tested editor workload. ANE conversion remains inappropriate until a quality-preserving, block-quantized Seed-specific path exists.
+
 ## 2026-07-26 — Suppress post-accept completion loops
 
 - Reproduced repeated blocks from MTPLX request logs: accepting a Reticle insertion caused VS Code to invoke the automatic provider again at the new cursor, even though MTPLX's session cache was empty.

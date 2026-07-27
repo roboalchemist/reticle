@@ -20,6 +20,8 @@
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=roboalchemist.reticle"><strong>Install</strong></a>
   ·
+  <a href="#quick-start-with-seed-coder-on-mlx">Seed + MLX quick start</a>
+  ·
   <a href="#quick-start-with-mtplx">MTPLX quick start</a>
   ·
   <a href="#provider-guides">Provider guides</a>
@@ -33,12 +35,12 @@ Reticle connects VS Code directly to an OpenAI-compatible `POST /v1/completions`
 
 |                               |                                                                                         |
 | ----------------------------- | --------------------------------------------------------------------------------------- |
-| **Local and BYOK**            | Use MTPLX, Ollama, llama.cpp, LM Studio, or a compatible remote endpoint.               |
+| **Local and BYOK**            | Use MLX-LM, MTPLX, Ollama, llama.cpp, LM Studio, or a compatible remote endpoint.       |
 | **True fill-in-the-middle**   | Sends both the code before and after the cursor instead of prompting a chat model.      |
 | **Multi-line with one `Tab`** | Accept an entire bounded block while keeping indentation and suffix overlap intact.     |
 | **Small and observable**      | No hosted account or telemetry; inspect your endpoint, service health, logs, and usage. |
 
-The selected model must actually support FIM. Reticle can send a separate OpenAI `suffix` or embed Qwen PSM special tokens for plain-completion servers such as MTPLX. Chat-only models are not compatible even when their server implements an OpenAI-shaped API.
+The selected model must actually support FIM. Reticle can send a separate OpenAI `suffix`, embed Qwen PSM special tokens, or serialize Seed-Coder's native SPM format for plain-completion servers. Chat-only models are not compatible even when their server implements an OpenAI-shaped API.
 
 ## Install
 
@@ -49,6 +51,30 @@ code --install-extension roboalchemist.reticle
 ```
 
 For an offline install, download the VSIX from the [latest GitHub release](https://github.com/roboalchemist/reticle/releases/latest), then run **Extensions: Install from VSIX...** in VS Code.
+
+## Quick start with Seed-Coder on MLX
+
+This is the recommended quality-first local setup for Apple Silicon Macs with at least 16 GB of unified memory:
+
+```bash
+brew install roboalchemist/tap/reticle-seed-mlx
+reticle-seed-mlx install
+reticle-seed-mlx doctor
+```
+
+Then configure VS Code:
+
+```jsonc
+{
+  "reticle.baseURL": "http://127.0.0.1:8001/v1",
+  "reticle.model": "roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4",
+  "reticle.fimFormat": "seed",
+  "reticle.maxLines": 8,
+  "reticle.maxTokens": 64,
+}
+```
+
+The helper installs MLX-LM in a private environment, downloads the 3.6 GB mixed 3/4-bit Seed-Coder build, creates a loopback-only LaunchAgent, enables incremental prompt caching, and warms the real FIM request path. Use `reticle-seed-mlx status`, `monitor`, and `logs` to observe it. See the [complete Seed + MLX guide](docs/providers/seed-mlx.md) for benchmarks, tuning, lifecycle commands, and uninstall.
 
 ## Quick start with MTPLX
 
@@ -141,7 +167,7 @@ Compatible output has a `choices[0].text` insertion like `a + b`. Once that pass
 | `reticle.model`             |                      empty | Exact model ID from the server's `/v1/models` response.                                         |
 | `reticle.apiKey`            |                      empty | Optional on loopback; required for remote endpoints.                                            |
 | `reticle.extraHeaders`      |                       `{}` | Additional string-valued request headers.                                                       |
-| `reticle.fimFormat`         |                   `openai` | `openai` sends a separate suffix; `qwen` embeds Qwen PSM markers for plain-completion servers.  |
+| `reticle.fimFormat`         |                   `openai` | `openai` sends a separate suffix; `qwen` and `seed` embed their model-native FIM markers.       |
 | `reticle.maxLines`          |                        `8` | Maximum lines displayed in one inline completion (1–64).                                        |
 | `reticle.maxTokens`         |                      `256` | Maximum generated tokens (1–2048).                                                              |
 | `reticle.temperature`       |                        `0` | Sampling temperature (0–2).                                                                     |
@@ -156,6 +182,7 @@ Reticle requires HTTPS and an API key for non-loopback endpoints. It never logs 
 ## Provider guides
 
 - [Ollama](docs/providers/ollama.md) — recommended first setup; its OpenAI compatibility documents `suffix`.
+- [Seed-Coder + MLX](docs/providers/seed-mlx.md) — quality-first Apple Silicon setup with a managed service and prompt-cache acceleration.
 - [MTPLX](docs/providers/mtplx.md) — managed Apple Silicon service with health, metrics, dashboard, and Qwen PSM transport.
 - [llama.cpp](docs/providers/llama-cpp.md) — excellent FIM runtime, with an important `/infill` versus `/v1/completions` caveat.
 - [OMLX](docs/providers/omlx.md) — Apple Silicon serving and the archive's fastest Mac-local model result.
@@ -187,8 +214,8 @@ The live integration test is explicit and loopback-only:
 
 ```bash
 RETICLE_INTEGRATION=1 \
-RETICLE_INTEGRATION_MODEL=mtplx-qwen35-9b-optimized-speed \
-RETICLE_INTEGRATION_FIM_FORMAT=qwen \
+RETICLE_INTEGRATION_MODEL=roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4 \
+RETICLE_INTEGRATION_FIM_FORMAT=seed \
 npm run test:integration
 ```
 

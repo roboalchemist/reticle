@@ -182,7 +182,7 @@ suite("Reticle extension host", () => {
     });
   });
 
-  test("returns a suffix-dependent insertion from the live MTPLX endpoint", async function () {
+  test("returns a suffix-dependent insertion from the configured live endpoint", async function () {
     if (process.env.RETICLE_E2E_LIVE !== "1") {
       this.skip();
     }
@@ -190,12 +190,17 @@ suite("Reticle extension host", () => {
     const extension = vscode.extensions.getExtension<ReticleExtensionApi>(extensionId);
     assert.ok(extension, `${extensionId} must be loaded in the Extension Development Host`);
     const api = await extension.activate();
+    const requestedFimFormat = process.env.RETICLE_INTEGRATION_FIM_FORMAT;
+    const fimFormat =
+      requestedFimFormat === "seed" || requestedFimFormat === "qwen"
+        ? requestedFimFormat
+        : "openai";
     const liveSettings = {
       baseURL: process.env.RETICLE_INTEGRATION_BASE_URL ?? "http://127.0.0.1:8000/v1",
-      fimFormat: "qwen",
+      fimFormat,
       maxTokens: 64,
       model: process.env.RETICLE_INTEGRATION_MODEL ?? "mtplx-qwen35-9b-optimized-speed",
-    } as const;
+    };
     const globalConfiguration = vscode.workspace.getConfiguration("reticle");
     const previous = Object.fromEntries(
       Object.keys(liveSettings).map((key) => [key, globalConfiguration.inspect(key)?.globalValue]),

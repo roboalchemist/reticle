@@ -37,6 +37,23 @@ describe("OpenAI-compatible FIM request", () => {
     });
   });
 
+  it("embeds Seed suffix-prefix-middle markers for plain-completion servers", () => {
+    expect(
+      buildCompletionsRequest("const value = user.", ";\n", "seed-fim", {
+        fimFormat: "seed",
+        maxTokens: 48,
+        temperature: 0,
+      }),
+    ).toEqual({
+      model: "seed-fim",
+      prompt: "<[fim-suffix]>;\n<[fim-prefix]>const value = user.<[fim-middle]>",
+      suffix: "",
+      max_tokens: 48,
+      temperature: 0,
+      stream: true,
+    });
+  });
+
   it("normalizes base URLs without duplicating the endpoint", () => {
     expect(completionsUrl("http://127.0.0.1:8001/v1/")).toBe(
       "http://127.0.0.1:8001/v1/completions",

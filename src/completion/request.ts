@@ -18,6 +18,9 @@ export interface OpenAICompletionsRequest {
 const QWEN_FIM_PREFIX = "<|fim_prefix|>";
 const QWEN_FIM_SUFFIX = "<|fim_suffix|>";
 const QWEN_FIM_MIDDLE = "<|fim_middle|>";
+const SEED_FIM_PREFIX = "<[fim-prefix]>";
+const SEED_FIM_SUFFIX = "<[fim-suffix]>";
+const SEED_FIM_MIDDLE = "<[fim-middle]>";
 
 /** Build an OpenAI completions request with the configured FIM serialization. */
 export function buildCompletionsRequest(
@@ -30,6 +33,16 @@ export function buildCompletionsRequest(
     return {
       model,
       prompt: `${QWEN_FIM_PREFIX}${prefix}${QWEN_FIM_SUFFIX}${suffix}${QWEN_FIM_MIDDLE}`,
+      suffix: "",
+      max_tokens: settings.maxTokens,
+      temperature: settings.temperature,
+      stream: true,
+    };
+  }
+  if (settings.fimFormat === "seed") {
+    return {
+      model,
+      prompt: `${SEED_FIM_SUFFIX}${suffix}${SEED_FIM_PREFIX}${prefix}${SEED_FIM_MIDDLE}`,
       suffix: "",
       max_tokens: settings.maxTokens,
       temperature: settings.temperature,

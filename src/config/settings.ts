@@ -4,7 +4,7 @@ export interface ConfigurationReader {
   get<T>(section: string, defaultValue: T): T;
 }
 
-export type FimFormat = "openai" | "qwen";
+export type FimFormat = "openai" | "qwen" | "seed";
 
 export interface ReticleSettings {
   apiKey: string;
@@ -64,8 +64,8 @@ function booleanValue(
 
 function fimFormatValue(configuration: ConfigurationReader): FimFormat {
   const value = stringValue(configuration, "fimFormat", "openai");
-  if (value !== "openai" && value !== "qwen") {
-    throw new SettingsError('Reticle: reticle.fimFormat must be "openai" or "qwen".');
+  if (value !== "openai" && value !== "qwen" && value !== "seed") {
+    throw new SettingsError('Reticle: reticle.fimFormat must be "openai", "qwen", or "seed".');
   }
   return value;
 }
