@@ -61,6 +61,8 @@ Reticle MLX follows the same direct-update architecture as PTTVox:
 
 1. Sparkle 2 is embedded in the Developer ID signed app.
 2. `SUFeedURL` and `SUPublicEDKey` are injected only into release bundles.
+   Configured releases also default to automatic daily checks and background
+   installation without a second-launch permission prompt.
 3. `scripts/stage-appcast` signs the notarized DMG with a dedicated Ed25519
    key kept outside the repository.
 4. `scripts/publish-appcast` hands the signature, release notes, and DMG to an
@@ -83,7 +85,7 @@ Updates…**. Sparkle must download the new DMG, verify its EdDSA and Developer
 ID signatures, install it, and relaunch the new version.
 
 The first Sparkle-enabled release is a bootstrap: 0.6.0 cannot discover it.
-After users install that release once, later signed releases update in-app.
+After users install 0.7.0 or newer once, later signed releases update in-app.
 To roll back, remove the bad item from the appcast before removing its public
 artifact; clients only follow the feed.
 

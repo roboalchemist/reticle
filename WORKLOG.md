@@ -1,5 +1,11 @@
 # Worklog
 
+## 2026-07-27 — Prompt-free automatic updates
+
+- Sparkle normally asks permission on the second launch before scheduling update checks. That interaction is easy to miss in a background-only accessory app.
+- Configured release bundles now set `SUEnableAutomaticChecks`, `SUAutomaticallyUpdate`, and a no-profile default. Development bundles remain disconnected unless both feed URL and public key are injected.
+- Use 0.7.0 as the installed bootstrap and 0.7.1 as the first production-feed update to validate automatic download, Ed25519/Developer ID verification, installation, and relaunch.
+
 ## 2026-07-27 — Sparkle auto-updates and current menu-bar mark
 
 - Mirrored PTTVox's Sparkle 2 architecture with an app-specific Ed25519 signing key, release-only feed configuration, signed appcast staging, publishing handoff, and a manual **Check for Updates…** menu item.

@@ -49,6 +49,11 @@ fi
 if [ -n "${sparkle_public_key}" ]; then
   plutil -insert SUPublicEDKey -string "${sparkle_public_key}" "${contents_path}/Info.plist"
 fi
+if [ -n "${sparkle_feed_url}" ] && [ -n "${sparkle_public_key}" ]; then
+  plutil -insert SUEnableAutomaticChecks -bool true "${contents_path}/Info.plist"
+  plutil -insert SUAutomaticallyUpdate -bool true "${contents_path}/Info.plist"
+  plutil -insert SUSendProfileInfo -bool false "${contents_path}/Info.plist"
+fi
 
 icon_source="${repo_root}/media/app-icon-1024.png"
 iconset="${build_root}/AppIcon.iconset"
