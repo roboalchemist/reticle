@@ -10,9 +10,21 @@ zip_path="${release_root}/Reticle-MLX-${version}.zip"
 dmg_path="${release_root}/Reticle-MLX-${version}.dmg"
 identity="${RETICLE_CODESIGN_IDENTITY:-}"
 notary_profile="${RETICLE_NOTARY_PROFILE:-reticle-mlx-notary}"
+sparkle_feed_url="${RETICLE_SPARKLE_FEED_URL:-}"
+sparkle_public_key="${RETICLE_SPARKLE_PUBLIC_ED_KEY:-}"
+sparkle_private_key_file="${RETICLE_SPARKLE_PRIVATE_KEY_FILE:-}"
+build_number="${RETICLE_BUILD_NUMBER:-$(( $(git -C "${repo_root}" rev-list --count HEAD) + 1 ))}"
 
 if [ -z "${identity}" ]; then
   printf 'error: RETICLE_CODESIGN_IDENTITY is required for a release\n' >&2
+  exit 1
+fi
+if [ -z "${sparkle_feed_url}" ] || [ -z "${sparkle_public_key}" ]; then
+  printf 'error: RETICLE_SPARKLE_FEED_URL and RETICLE_SPARKLE_PUBLIC_ED_KEY are required for a release\n' >&2
+  exit 1
+fi
+if [ -z "${sparkle_private_key_file}" ] || [ ! -f "${sparkle_private_key_file}" ]; then
+  printf 'error: RETICLE_SPARKLE_PRIVATE_KEY_FILE must name the exported Sparkle private key\n' >&2
   exit 1
 fi
 
@@ -21,7 +33,11 @@ case "${release_root}" in
   *) printf 'error: release directory escaped the repository build directory\n' >&2; exit 1 ;;
 esac
 
-RETICLE_CODESIGN_IDENTITY="${identity}" "${repo_root}/scripts/build-macos-app"
+RETICLE_CODESIGN_IDENTITY="${identity}" \
+RETICLE_BUILD_NUMBER="${build_number}" \
+RETICLE_SPARKLE_FEED_URL="${sparkle_feed_url}" \
+RETICLE_SPARKLE_PUBLIC_ED_KEY="${sparkle_public_key}" \
+  "${repo_root}/scripts/build-macos-app"
 mkdir -p "${release_root}"
 rm -f "${zip_path}" "${dmg_path}"
 
@@ -47,3 +63,6 @@ xcrun stapler validate "${dmg_path}"
 spctl --assess --type open --context context:primary-signature --verbose=4 "${dmg_path}"
 
 openssl dgst -sha256 "${zip_path}" "${dmg_path}"
+
+RETICLE_SPARKLE_PRIVATE_KEY_FILE="${sparkle_private_key_file}" \
+  "${repo_root}/scripts/stage-appcast"

@@ -16,6 +16,7 @@ enum ReticleMLXApp {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let controller = ServiceController()
+  private let sparkleUpdater = SparkleUpdater()
   private var statusItem: NSStatusItem?
   private var settingsWindow: NSWindow?
   private var timer: Timer?
@@ -32,11 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     controller.$state
       .sink { [weak self] state in
-        self?.statusItem?.button?.image = NSImage(
-          systemSymbolName: state.symbolName,
-          accessibilityDescription: "Reticle MLX: \(state.title)"
-        )
-        self?.statusItem?.button?.image?.isTemplate = true
+        self?.updateStatusItem(for: state)
       }
       .store(in: &cancellables)
 
@@ -70,6 +67,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.addItem(.separator())
     menu.addItem(actionItem("Open Logs", #selector(openLogs)))
     menu.addItem(actionItem("Settings…", #selector(openSettings), key: ","))
+    menu.addItem(
+      actionItem(
+        "Check for Updates…",
+        #selector(checkForUpdates),
+        enabled: sparkleUpdater.canCheckForUpdates
+      )
+    )
     menu.addItem(actionItem("Reticle MLX on GitHub", #selector(openGitHub)))
     menu.addItem(.separator())
     menu.addItem(actionItem("Quit Reticle MLX", #selector(quit), key: "q"))
@@ -118,6 +122,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     NSWorkspace.shared.open(URL(string: "https://github.com/roboalchemist/reticle-mlx")!)
   }
 
+  @objc private func checkForUpdates() {
+    sparkleUpdater.checkForUpdates()
+  }
+
   @objc private func quit() {
     NSApp.terminate(nil)
   }
@@ -149,5 +157,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private func shortModelName(_ model: String) -> String {
     let name = model.split(separator: "/").last.map(String.init) ?? model
     return name.count > 46 ? String(name.prefix(43)) + "…" : name
+  }
+
+  private func updateStatusItem(for state: ServiceState) {
+    guard let button = statusItem?.button else { return }
+
+    let description = "Reticle MLX: \(state.title)"
+    if
+      let iconURL = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "png"),
+      let icon = NSImage(contentsOf: iconURL)
+    {
+      icon.size = NSSize(width: 18, height: 18)
+      icon.isTemplate = true
+      icon.accessibilityDescription = description
+      button.image = icon
+    } else {
+      button.image = NSImage(
+        systemSymbolName: "chevron.left.forwardslash.chevron.right",
+        accessibilityDescription: description
+      )
+      button.image?.isTemplate = true
+    }
+    button.toolTip = description
   }
 }

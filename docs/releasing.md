@@ -34,16 +34,58 @@ xcrun notarytool store-credentials reticle-mlx-notary \
 Build, sign, notarize, staple, and validate both ZIP and DMG:
 
 ```bash
+private_key_file="$(mktemp)"
+gopass show --password reticle-mlx/sparkle/private-key > "${private_key_file}"
+
 RETICLE_CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAM_ID)" \
 RETICLE_NOTARY_PROFILE=reticle-mlx-notary \
+RETICLE_SPARKLE_FEED_URL="https://updates.example.com/reticle-mlx/appcast.xml" \
+RETICLE_SPARKLE_PUBLIC_ED_KEY="$(gopass show --password reticle-mlx/sparkle/public-key)" \
+RETICLE_SPARKLE_PRIVATE_KEY_FILE="${private_key_file}" \
 scripts/release-macos-app
+
+rm -P "${private_key_file}"
 ```
 
 The script verifies the signature before submission, submits the signed app
 archive, staples the ticket to the app, rebuilds the ZIP, creates and signs the
 DMG, notarizes and staples the DMG, and runs Gatekeeper assessment on both.
-Upload `build/release/Reticle-MLX-<version>.zip` and `.dmg` to the matching
-GitHub release. Never publish an ad-hoc build from `scripts/build-macos-app`.
+It then generates an EdDSA-signed Sparkle manifest under
+`build/appcast/reticle-mlx/`. Upload
+`build/release/Reticle-MLX-<version>.zip` and `.dmg` to the matching GitHub
+release. Never publish an ad-hoc build from `scripts/build-macos-app`.
+
+### Sparkle updates
+
+Reticle MLX follows the same direct-update architecture as PTTVox:
+
+1. Sparkle 2 is embedded in the Developer ID signed app.
+2. `SUFeedURL` and `SUPublicEDKey` are injected only into release bundles.
+3. `scripts/stage-appcast` signs the notarized DMG with a dedicated Ed25519
+   key kept outside the repository.
+4. `scripts/publish-appcast` hands the signature, release notes, and DMG to an
+   appcast publisher.
+5. The menu-bar app checks the public HTTPS feed automatically and exposes
+   **Check for Updates…** for a manual check.
+
+Publish a staged update:
+
+```bash
+RETICLE_APPCAST_PUBLISH_SCRIPT="/path/to/appcast/scripts/publish.sh" \
+RETICLE_APPCAST_API_URL="https://updates.example.com" \
+RETICLE_APPCAST_API_TOKEN="token-from-secret-store" \
+scripts/publish-appcast
+```
+
+Validate the public feed and its newest enclosure with the appcast service's
+`validate-feed.sh`, then install the preceding release and run **Check for
+Updates…**. Sparkle must download the new DMG, verify its EdDSA and Developer
+ID signatures, install it, and relaunch the new version.
+
+The first Sparkle-enabled release is a bootstrap: 0.6.0 cannot discover it.
+After users install that release once, later signed releases update in-app.
+To roll back, remove the bad item from the appcast before removing its public
+artifact; clients only follow the feed.
 
 The two registry publications are external, non-transactional operations. If one registry succeeds and the other fails, fix the failed credential or registry issue and republish only the missing registry rather than incrementing the version that already shipped.
 

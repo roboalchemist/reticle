@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title>Reticle menu bar template icon</title>
+  <path
+    d="M47 34 27 64l20 30"
+    fill="none"
+    stroke="#fff"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="13"
+  />
+  <path
+    d="m81 34 20 30-20 30"
+    fill="none"
+    stroke="#fff"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="13"
+  />
+  <path
+    d="M64 45c2.3 10.2 8.8 16.7 19 19-10.2 2.3-16.7 8.8-19 19-2.3-10.2-8.8-16.7-19-19 10.2-2.3 16.7-8.8 19-19Z"
+    fill="#fff"
+  />
+</svg>
