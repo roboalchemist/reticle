@@ -31,6 +31,7 @@ describe("Reticle settings", () => {
     expect(settings.extraHeaders).toEqual({ "x-provider": "yes" });
     expect(settings.fimFormat).toBe("openai");
     expect(settings.debounceMs).toBe(75);
+    expect(settings.maxLines).toBe(8);
     expect(settings.maxTokens).toBe(256);
   });
 
@@ -78,6 +79,9 @@ describe("Reticle settings", () => {
       validateSettings({ ...valid, baseURL: "http://user:pass@localhost:8001/v1" }),
     ).toThrow("must not contain credentials");
     expect(() => validateSettings({ ...valid, maxTokens: 0 })).toThrow("must be an integer");
+    expect(() => validateSettings({ ...valid, maxLines: 0 })).toThrow(
+      "reticle.maxLines must be an integer",
+    );
     expect(() => validateSettings({ ...valid, extraHeaders: { "x-bad\nname": "value" } })).toThrow(
       "invalid characters",
     );

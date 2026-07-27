@@ -53,15 +53,19 @@ function stripMarkdownFence(value: string): string {
   return closingIndex === -1 ? body : body.slice(0, closingIndex);
 }
 
-function firstLine(value: string): string {
-  const newline = value.search(/[\r\n]/);
-  return newline === -1 ? value : value.slice(0, newline);
-}
-
 export interface SanitizeContext {
   languageId: string;
+  maxLines?: number;
   prefix: string;
   suffix?: string;
+}
+
+function limitLines(value: string, maximum: number): string {
+  return value.split("\n").slice(0, maximum).join("\n");
+}
+
+function lineCount(value: string): number {
+  return value.split(/\r\n|\r|\n/).length;
 }
 
 function removeCursorOverlap(value: string, context: SanitizeContext): string {
@@ -85,57 +89,53 @@ function removeCursorOverlap(value: string, context: SanitizeContext): string {
 }
 
 /**
- * Keep inline output to one line and use identifier trimming only for identifier
- * continuations. General expressions such as `a + b` remain intact after `return `.
+ * Keep bounded multi-line output and use identifier trimming only for identifier
+ * continuations. General expressions and blocks remain intact after whitespace.
  */
 export function sanitizeCompletion(value: string, context: SanitizeContext): string {
-  const withoutFence = stripMarkdownFence(value.replaceAll("\0", ""));
-  const line = removeCursorOverlap(
-    firstLine(withoutFence).replace(/<\|fim_(?:prefix|suffix|middle)\|>/g, ""),
-    context,
+  const normalized = stripMarkdownFence(value.replaceAll("\0", "").replace(/\r\n?|\n/g, "\n"));
+  const insertion = limitLines(
+    removeCursorOverlap(normalized.replace(/<\|fim_(?:prefix|suffix|middle)\|>/g, ""), context),
+    context.maxLines ?? 8,
   );
   const pattern = identifierCharacterPattern(context.languageId);
   const previous = lastCharacter(context.prefix);
-  const first = firstCharacter(line);
+  const first = firstCharacter(insertion);
 
   if (!pattern.test(previous) || !pattern.test(first)) {
-    return line;
+    return insertion;
   }
 
   let boundary = 0;
-  for (const character of line) {
+  for (const character of insertion) {
     if (!pattern.test(character)) {
       break;
     }
     boundary += character.length;
   }
-  return line.slice(0, boundary);
+  return insertion.slice(0, boundary);
 }
 
 export function reachedInlineBoundary(value: string, context: SanitizeContext): boolean {
-  if (/[\r\n]/.test(value)) {
+  if (/(?:```|~~~|<\|fim_(?:prefix|suffix|middle)\|>)/.test(value)) {
     return true;
   }
 
   const pattern = identifierCharacterPattern(context.languageId);
   const previous = lastCharacter(context.prefix);
-  if (!pattern.test(previous)) {
+  if (pattern.test(previous)) {
+    for (const character of value) {
+      if (!pattern.test(character)) {
+        return true;
+      }
+    }
     return false;
   }
 
-  for (const character of value) {
-    if (!pattern.test(character)) {
-      return true;
-    }
-  }
-  return false;
+  return lineCount(value) > (context.maxLines ?? 8);
 }
 
-/** Keep a tiny lookahead after a newline so a following SSE fence remains visible. */
+/** Preserve the existing guarded entry point used by the streaming provider. */
 export function reachedGuardedInlineBoundary(value: string, context: SanitizeContext): boolean {
-  const newline = value.search(/[\r\n]/);
-  if (newline === -1) {
-    return reachedInlineBoundary(value, context);
-  }
-  return value.slice(newline + 1).trimStart().length >= 3;
+  return reachedInlineBoundary(value, context);
 }

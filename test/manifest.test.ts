@@ -60,6 +60,7 @@ describe("extension manifest", () => {
         "fimFormat",
         "languageAllowlist",
         "languageDenylist",
+        "maxLines",
         "maxTokens",
         "model",
         "multiFileContext",

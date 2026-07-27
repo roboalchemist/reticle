@@ -29,9 +29,21 @@ describe("inline completion sanitizer", () => {
   });
 
   it("does not truncate general expressions after whitespace", () => {
-    const context = { languageId: "javascript", prefix: "  return " };
-    expect(sanitizeCompletion("a + b\nmore", context)).toBe("a + b");
+    const context = { languageId: "javascript", maxLines: 2, prefix: "  return " };
+    expect(sanitizeCompletion("a + b\nmore\nignored", context)).toBe("a + b\nmore");
     expect(sanitizeCompletion(" a + b;", { ...context, suffix: ";\n}" })).toBe("a + b");
+  });
+
+  it("preserves indentation, normalizes newlines, and removes multi-line suffix overlap", () => {
+    const context = {
+      languageId: "typescript",
+      maxLines: 8,
+      prefix: "function greet() {\n  ",
+      suffix: "\n}\n",
+    };
+    expect(sanitizeCompletion("const name = getName();\r\n  return name;\r\n}\r\n", context)).toBe(
+      "const name = getName();\n  return name;",
+    );
   });
 
   it("strips Markdown fences and FIM control tokens", () => {
@@ -56,9 +68,10 @@ describe("inline completion sanitizer", () => {
     );
   });
 
-  it("keeps enough newline lookahead to detect a trailing fence", () => {
-    const context = { languageId: "javascript", prefix: "return " };
-    expect(reachedGuardedInlineBoundary("a + b\n", context)).toBe(false);
-    expect(reachedGuardedInlineBoundary("a + b\n\n```", context)).toBe(true);
+  it("stops at the configured line budget or a trailing fence", () => {
+    const context = { languageId: "javascript", maxLines: 2, prefix: "return " };
+    expect(reachedGuardedInlineBoundary("a + b\nnext", context)).toBe(false);
+    expect(reachedGuardedInlineBoundary("a + b\nnext\n", context)).toBe(true);
+    expect(reachedGuardedInlineBoundary("a + b\n```", context)).toBe(true);
   });
 });

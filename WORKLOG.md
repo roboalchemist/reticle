@@ -1,5 +1,12 @@
 # Worklog
 
+## 2026-07-26 — Bounded multi-line inline completions
+
+- Confirmed the completion transport and VS Code inline item already support multi-line insertions; Reticle's sanitizer and stream boundary deliberately truncated at the first newline.
+- Added a configurable 1–64 line budget with an eight-line default, preserved indentation and CRLF normalization, retained suffix-overlap removal, and kept identifier and fenced-response safety boundaries.
+- Documented that one `Tab` accepts the complete bounded block. Replacing existing ranges across multiple lines remains a separate next-edit feature because stable inline replacement ranges are single-line.
+- Refreshed the README around the Reticle logo, a concise product promise, registry/CI badges, quick navigation, a compact capability table, and an install-first flow. The structure follows the restrained hero and immediate-onboarding patterns used by leading developer projects.
+
 ## 2026-07-15 — Initial extension
 
 - Built a native VS Code inline-completion provider that sends OpenAI-compatible `prompt` plus `suffix` requests directly to the configured endpoint.

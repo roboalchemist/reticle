@@ -15,6 +15,7 @@ export interface ReticleSettings {
   fimFormat: FimFormat;
   languageAllowlist: string[];
   languageDenylist: string[];
+  maxLines: number;
   maxTokens: number;
   model: string;
   multiFileContext: boolean;
@@ -116,6 +117,7 @@ export function readSettings(configuration: ConfigurationReader): ReticleSetting
       configuration.get<unknown>("languageDenylist", []),
       "languageDenylist",
     ),
+    maxLines: numberValue(configuration, "maxLines", 8),
     maxTokens: numberValue(configuration, "maxTokens", 256),
     model: stringValue(configuration, "model", ""),
     multiFileContext: booleanValue(configuration, "multiFileContext", false),
@@ -171,6 +173,9 @@ export function validateSettings(settings: ReticleSettings): ReticleSettings {
     throw new SettingsError(
       "Reticle: Remote endpoints must use https so the API key and source context are encrypted in transit.",
     );
+  }
+  if (!Number.isInteger(settings.maxLines) || settings.maxLines < 1 || settings.maxLines > 64) {
+    throw new SettingsError("Reticle: reticle.maxLines must be an integer from 1 to 64.");
   }
   if (
     !Number.isInteger(settings.maxTokens) ||

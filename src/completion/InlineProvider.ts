@@ -130,7 +130,12 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
         )
       : localContext.prefix;
     const suffix = localContext.suffix;
-    const sanitizeContext = { languageId: document.languageId, prefix, suffix };
+    const sanitizeContext = {
+      languageId: document.languageId,
+      maxLines: settings.maxLines,
+      prefix,
+      suffix,
+    };
     let requestFailed = false;
 
     try {

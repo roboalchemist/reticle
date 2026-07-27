@@ -14,6 +14,7 @@ const expectedSettingIds = [
   "reticle.fimFormat",
   "reticle.languageAllowlist",
   "reticle.languageDenylist",
+  "reticle.maxLines",
   "reticle.maxTokens",
   "reticle.model",
   "reticle.multiFileContext",
