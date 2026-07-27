@@ -2,7 +2,7 @@
   <img src="media/icon.png" width="128" height="128" alt="Reticle logo: code brackets and a completion sparkle">
 </p>
 
-<h1 align="center">Reticle</h1>
+<h1 align="center">Reticle + Reticle MLX</h1>
 
 <p align="center">
   <strong>Fast, private code completion on your own endpoint.</strong>
@@ -13,14 +13,14 @@
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=roboalchemist.reticle"><img alt="VS Code Marketplace version" src="https://img.shields.io/visual-studio-marketplace/v/roboalchemist.reticle?label=VS%20Code&color=6574f7"></a>
   <a href="https://open-vsx.org/extension/roboalchemist/reticle"><img alt="Open VSX version" src="https://img.shields.io/open-vsx/v/roboalchemist/reticle?label=Open%20VSX&color=6574f7"></a>
-  <a href="https://github.com/roboalchemist/reticle/actions/workflows/ci.yml"><img alt="Build status" src="https://github.com/roboalchemist/reticle/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/roboalchemist/reticle-mlx/actions/workflows/ci.yml"><img alt="Build status" src="https://github.com/roboalchemist/reticle-mlx/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-ff7869"></a>
 </p>
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=roboalchemist.reticle"><strong>Install</strong></a>
   ·
-  <a href="#quick-start-with-seed-coder-on-mlx">Seed + MLX quick start</a>
+  <a href="#reticle-mlx-for-macos">Reticle MLX for macOS</a>
   ·
   <a href="#quick-start-with-mtplx">MTPLX quick start</a>
   ·
@@ -50,31 +50,42 @@ Install `roboalchemist.reticle` from the [VS Code Marketplace](https://marketpla
 code --install-extension roboalchemist.reticle
 ```
 
-For an offline install, download the VSIX from the [latest GitHub release](https://github.com/roboalchemist/reticle/releases/latest), then run **Extensions: Install from VSIX...** in VS Code.
+For an offline install, download the VSIX from the [latest GitHub release](https://github.com/roboalchemist/reticle-mlx/releases/latest), then run **Extensions: Install from VSIX...** in VS Code.
 
-## Quick start with Seed-Coder on MLX
+## Reticle MLX for macOS
 
-This is the recommended quality-first local setup for Apple Silicon Macs with at least 16 GB of unified memory:
+Reticle MLX is the native menu-bar companion for Apple Silicon. It installs,
+starts, stops, monitors, and switches MLX-LM completion models without keeping a
+terminal open. The app is Developer ID signed, hardened, notarized by Apple, and
+distributed from the [latest GitHub release](https://github.com/roboalchemist/reticle-mlx/releases/latest).
 
 ```bash
-brew install roboalchemist/tap/reticle-seed-mlx
-reticle-seed-mlx install
-reticle-seed-mlx doctor
+brew install --cask roboalchemist/tap/reticle-mlx
+open -g -a "Reticle MLX"
 ```
 
-Then configure VS Code:
+Open **Settings…** from the menu-bar sparkle and choose:
 
-```jsonc
-{
-  "reticle.baseURL": "http://127.0.0.1:8001/v1",
-  "reticle.model": "roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4",
-  "reticle.fimFormat": "seed",
-  "reticle.maxLines": 8,
-  "reticle.maxTokens": 64,
-}
+- **Seed-Coder 8B — quality:** the recommended 3.6 GB mixed-bit model.
+- **Qwen2.5-Coder 3B — speed:** lower latency and memory use.
+- **Custom MLX model:** any compatible Hugging Face ID or local model path,
+  paired with Seed, Qwen, or OpenAI FIM transport.
+
+Click **Install Model & Service**, then **Copy VS Code Settings**. The app keeps
+the service loopback-only, shows health in the menu bar, exposes logs and a real
+FIM doctor, and can start at login.
+
+The same manager is available headlessly:
+
+```bash
+brew install roboalchemist/tap/reticle-mlx
+reticle-mlx install
+reticle-mlx doctor
+reticle-mlx monitor
 ```
 
-The helper installs MLX-LM in a private environment, downloads the 3.6 GB mixed 3/4-bit Seed-Coder build, creates a loopback-only LaunchAgent, enables incremental prompt caching, and warms the real FIM request path. Use `reticle-seed-mlx status`, `monitor`, and `logs` to observe it. See the [complete Seed + MLX guide](docs/providers/seed-mlx.md) for benchmarks, tuning, lifecycle commands, and uninstall.
+See the [complete Reticle MLX guide](docs/providers/mlx.md) for model presets,
+custom models, measured performance, migration, and lifecycle commands.
 
 ## Quick start with MTPLX
 
@@ -182,7 +193,7 @@ Reticle requires HTTPS and an API key for non-loopback endpoints. It never logs 
 ## Provider guides
 
 - [Ollama](docs/providers/ollama.md) — recommended first setup; its OpenAI compatibility documents `suffix`.
-- [Seed-Coder + MLX](docs/providers/seed-mlx.md) — quality-first Apple Silicon setup with a managed service and prompt-cache acceleration.
+- [Reticle MLX](docs/providers/mlx.md) — signed macOS menu-bar app and model-agnostic MLX-LM service manager.
 - [MTPLX](docs/providers/mtplx.md) — managed Apple Silicon service with health, metrics, dashboard, and Qwen PSM transport.
 - [llama.cpp](docs/providers/llama-cpp.md) — excellent FIM runtime, with an important `/infill` versus `/v1/completions` caveat.
 - [OMLX](docs/providers/omlx.md) — Apple Silicon serving and the archive's fastest Mac-local model result.

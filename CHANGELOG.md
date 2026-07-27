@@ -2,6 +2,14 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.6.0
+
+- Rename the public repository and Apple Silicon companion to Reticle MLX while preserving the `roboalchemist.reticle` VS Code extension identity.
+- Add a native Swift menu-bar app for installing, starting, stopping, restarting, diagnosing, and monitoring local MLX-LM completion models.
+- Generalize the managed service from Seed-only settings to selectable Seed, Qwen, and OpenAI FIM transports with quality, speed, and custom-model presets.
+- Add a hardened-runtime Developer ID signing, Apple notarization, stapling, DMG/ZIP packaging, and Gatekeeper validation pipeline.
+- Migrate the legacy Seed LaunchAgent without deleting its private runtime, logs, or Hugging Face cache.
+
 ## 0.5.0
 
 - Add Seed-Coder's native suffix-prefix-middle FIM serialization.

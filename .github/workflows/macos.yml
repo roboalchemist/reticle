@@ -1,0 +1,29 @@
+name: macOS app
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Test Swift package
+        run: swift test --package-path macos/ReticleMLX
+      - name: Build ad-hoc signed app
+        run: scripts/build-macos-app
+      - name: Verify app bundle
+        run: |
+          codesign --verify --deep --strict --verbose=2 "build/macos/Reticle MLX.app"
+          plutil -lint "build/macos/Reticle MLX.app/Contents/Info.plist"

@@ -1,5 +1,13 @@
 # Worklog
 
+## 2026-07-27 — Reticle MLX native macOS companion
+
+- Renamed the public repository and local checkout to `reticle-mlx` while preserving the installed extension ID `roboalchemist.reticle`.
+- Generalized the managed MLX-LM service from Seed-specific names to a model plus FIM-format configuration. Seed remains the quality preset; Qwen 3B is the speed preset; custom MLX model paths and Seed, Qwen, or OpenAI transports are supported.
+- Added a native Swift menu-bar application with health polling, lifecycle controls, model settings, launch-at-login support, log access, a real doctor probe, and matching VS Code configuration on the clipboard.
+- Added deterministic application-bundle assembly, Developer ID hardened-runtime signing, Apple notarization, ticket stapling, ZIP/DMG packaging, and Gatekeeper verification scripts.
+- Preserve the legacy Seed runtime and logs during migration, but remove its LaunchAgent only after the replacement service becomes healthy so both cannot claim port 8001.
+
 ## 2026-07-27 — Idempotent registry retries
 
 - A post-release Open VSX retry correctly found that 0.5.0 was already published, but `ovsx` returned a failure status and left a misleading red workflow run.

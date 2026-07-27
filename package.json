@@ -2,7 +2,7 @@
   "name": "reticle",
   "displayName": "Reticle",
   "description": "Local-first BYOK FIM autocomplete with multi-line ghost text for OpenAI-compatible completion endpoints.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "roboalchemist",
   "license": "MIT",
   "private": false,
@@ -13,11 +13,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/roboalchemist/reticle.git"
+    "url": "https://github.com/roboalchemist/reticle-mlx.git"
   },
-  "homepage": "https://github.com/roboalchemist/reticle#readme",
+  "homepage": "https://github.com/roboalchemist/reticle-mlx#readme",
   "bugs": {
-    "url": "https://github.com/roboalchemist/reticle/issues"
+    "url": "https://github.com/roboalchemist/reticle-mlx/issues"
   },
   "engines": {
     "vscode": "^1.96.0"
@@ -190,7 +190,7 @@
     "test:unit": "vitest run --passWithNoTests --exclude 'test/integration/**' --exclude 'test/e2e/**' --exclude '.e2e-out/**'",
     "test:integration": "vitest run test/integration/live-endpoint.test.ts",
     "test:e2e": "npm run compile && npm run compile:e2e && vscode-test",
-    "package": "vsce package --baseContentUrl https://github.com/roboalchemist/reticle/blob/main --baseImagesUrl https://raw.githubusercontent.com/roboalchemist/reticle/main"
+    "package": "vsce package --baseContentUrl https://github.com/roboalchemist/reticle-mlx/blob/main --baseImagesUrl https://raw.githubusercontent.com/roboalchemist/reticle-mlx/main"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

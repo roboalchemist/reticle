@@ -18,3 +18,8 @@ GOAL.md
 WORKLOG.md
 package-lock.json
 docs/releasing.md
+macos/**
+build/**
+media/app-icon-1024.png
+scripts/build-macos-app
+scripts/release-macos-app
