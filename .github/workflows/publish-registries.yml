@@ -56,6 +56,14 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
+          publisher="$(node -p "require('./package.json').publisher")"
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          package_url="https://marketplace.visualstudio.com/_apis/public/gallery/publishers/$publisher/vsextensions/$name/$version/vspackage"
+          if curl --fail --silent --show-error "$package_url" >/dev/null; then
+            echo "$publisher.$name $version is already published to the VS Code Marketplace."
+            exit 0
+          fi
           test -n "$VSCE_PAT" || {
             echo "::error::VSCE_PAT is not configured"
             exit 1
@@ -66,6 +74,14 @@ jobs:
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
+          publisher="$(node -p "require('./package.json').publisher")"
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if curl --fail --silent --show-error \
+            "https://open-vsx.org/api/$publisher/$name/$version" >/dev/null; then
+            echo "$publisher.$name $version is already published to Open VSX."
+            exit 0
+          fi
           test -n "$OVSX_PAT" || {
             echo "::error::OVSX_PAT is not configured"
             exit 1
