@@ -185,6 +185,9 @@ esac
   it("exposes native MTPLX download progress and validates the cached model", () => {
     const home = mkdtempSync(join(tmpdir(), "reticle-mtplx-download-"));
     temporaryDirectories.push(home);
+    const bin = join(home, "bin");
+    mkdirSync(bin, { recursive: true });
+    writeExecutable(join(bin, "plutil"), "#!/bin/sh\nexit 1\n");
     const mtplx = join(home, "mtplx");
     writeExecutable(
       mtplx,
@@ -207,6 +210,7 @@ esac
       HOME: home,
       MTPLX_BIN: mtplx,
       MTPLX_MODEL: "example/native-mtp",
+      PATH: `${bin}:/usr/bin:/bin`,
     };
 
     const download = spawnSync(join(process.cwd(), "scripts", "mtplx-service"), ["download"], {
