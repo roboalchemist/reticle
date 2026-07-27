@@ -51,3 +51,13 @@
 - Added a manual registry workflow that checks out an existing tag, downloads its already-published VSIX, and checks the file against GitHub's release-asset SHA-256 before publishing.
 - Kept Marketplace and Open VSX as independently retryable targets because registry publication is non-transactional and an already-published version cannot be submitted twice.
 - Added a no-publish verification target so the release download and digest path can be exercised before either registry credential exists.
+
+## 2026-07-26 — Public registry publication
+
+- Created the `roboalchemist` Marketplace publisher and published `roboalchemist.reticle` 0.3.1. Fresh isolated Marketplace installs succeeded on both the primary development Mac and the 16 GB Mac mini.
+- Confirmed that the Marketplace serves the same VSIX as the GitHub release, with SHA-256 `a4f05ac0190401eb774872f0e2e76b04f3d391ad7eb5da181f039346a24064fe`.
+- Linked the Open VSX, Eclipse Foundation, and GitHub identities, signed the publisher agreement, and created the `roboalchemist` namespace.
+- Stored both registry credentials outside the repository and configured the GitHub Actions secrets `VSCE_PAT` and `OVSX_PAT`.
+- Published the existing v0.3.1 GitHub release asset to Open VSX with the manual registry workflow. Open VSX's downloaded VSIX and published digest both match the GitHub release digest above.
+- Installed the public Open VSX download into an isolated VS Code profile and confirmed `roboalchemist.reticle@0.3.1`.
+- Open VSX renders a newly generated access token as plain text rather than a form field. Token automation must validate the extracted value before saving it or configuring CI.
