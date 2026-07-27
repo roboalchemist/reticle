@@ -87,11 +87,12 @@ Use the exact model ID returned by `GET /v1/models`:
   "reticle.baseURL": "http://127.0.0.1:8000/v1",
   "reticle.model": "mtplx-qwen35-9b-optimized-speed",
   "reticle.fimFormat": "qwen",
+  "reticle.maxLines": 8,
   "reticle.maxTokens": 64,
 }
 ```
 
-Run **Reticle: Test Autocomplete Endpoint**. On the validated Apple M3 Max setup, the live provider test returned the suffix-only identifier in 301 ms and the real VS Code extension-host test returned it in 384 ms after warmup. These are local observations, not a guarantee for other Macs.
+Run **Reticle: Test Autocomplete Endpoint**. Reticle accepts a whole multi-line ghost-text block with one press of `Tab`; lower `reticle.maxLines` if you prefer shorter suggestions. On the validated Apple M3 Max setup, the live provider test returned the suffix-only identifier in 301 ms and the real VS Code extension-host test returned it in 384 ms after warmup. These are local observations, not a guarantee for other Macs.
 
 Keep `reticle.multiFileContext` off until basic completions work. MTPLX's dashboard can remain open while editing to watch request latency and decode throughput.
 

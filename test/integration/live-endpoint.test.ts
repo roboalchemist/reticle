@@ -15,6 +15,7 @@ const { settings, showWarningMessage } = vi.hoisted(() => ({
         : ("openai" as const),
     languageAllowlist: [],
     languageDenylist: [],
+    maxLines: 8,
     maxTokens: 64,
     model: process.env.RETICLE_INTEGRATION_MODEL ?? "",
     multiFileContext: false,
@@ -95,6 +96,59 @@ it("produces a clean provider insertion from a live OpenAI-compatible FIM endpoi
       throw new TypeError("Expected the provider to return a plain string insertion.");
     }
     expect(insertion).toMatch(/^suffixOnlyIdentifier;?$/u);
+  } finally {
+    provider.dispose();
+  }
+}, 120_000);
+
+it("returns a bounded multi-line block from a live FIM endpoint", async () => {
+  if (process.env.RETICLE_INTEGRATION !== "1") {
+    throw new Error("Set RETICLE_INTEGRATION=1 to acknowledge the live network test.");
+  }
+  if (!settings.model) {
+    throw new Error("Set RETICLE_INTEGRATION_MODEL to the live endpoint's FIM-capable model ID.");
+  }
+  if (!isLoopbackURL(settings.baseURL)) {
+    throw new Error("The live integration harness only permits loopback endpoint URLs.");
+  }
+  const { InlineProvider } = await import("../../src/completion/InlineProvider.js");
+  const output: string[] = [];
+  const provider = new InlineProvider({
+    fetch: globalThis.fetch,
+    output: { appendLine: (line) => output.push(line) },
+  });
+  settings.maxLines = 4;
+  settings.maxTokens = 96;
+  const prefix = "function classify(score: number) {\n  ";
+  const suffix = "\n}\n";
+  const position = { line: 1, character: 2 };
+  const document = {
+    getText: () => `${prefix}${suffix}`,
+    offsetAt: () => prefix.length,
+    languageId: "typescript",
+    version: 1,
+    uri: { toString: () => "file:///reticle-integration/classify.ts" },
+  };
+  const token = {
+    isCancellationRequested: false,
+    onCancellationRequested: () => ({ dispose: () => undefined }),
+  };
+
+  try {
+    const result = await provider.provideInlineCompletionItems(
+      document as never,
+      position as never,
+      { triggerKind: 0 } as never,
+      token,
+    );
+    const insertion = result.items[0]?.insertText;
+    expect(output, output.join("\n")).toEqual([]);
+    expect(showWarningMessage).not.toHaveBeenCalled();
+    if (typeof insertion !== "string") {
+      throw new TypeError("Expected the provider to return a plain string insertion.");
+    }
+    expect(insertion).toContain("\n");
+    expect(insertion.split("\n")).toHaveLength(4);
   } finally {
     provider.dispose();
   }

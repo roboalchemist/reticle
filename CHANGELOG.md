@@ -2,6 +2,14 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.4.0
+
+- Add bounded multi-line ghost-text completions with one-press `Tab` acceptance.
+- Add `reticle.maxLines`, configurable from 1–64 lines with an eight-line default.
+- Preserve indentation, normalize line endings, remove suffix overlap across lines, and retain identifier and fenced-response safety boundaries.
+- Refresh the GitHub README with the Reticle logo, registry and CI badges, quick navigation, a capabilities overview, and a clearer install-first flow.
+- Add live MTPLX coverage for an actual multi-line TypeScript completion.
+
 ## 0.3.2
 
 - Replace the dark crosshair-style extension icon with a lighter code-brackets-and-sparkle mark.

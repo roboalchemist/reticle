@@ -17,6 +17,7 @@ const settings: ReticleSettings = {
   fimFormat: "openai",
   languageAllowlist: [],
   languageDenylist: [],
+  maxLines: 8,
   maxTokens: 256,
   model: "fim-model",
   multiFileContext: false,

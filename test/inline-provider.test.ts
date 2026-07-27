@@ -10,6 +10,7 @@ const settings: Record<string, unknown> = {
   debounceMs: 75,
   extraHeaders: {},
   fimFormat: "openai",
+  maxLines: 8,
   maxTokens: 16,
   model: "fim-model",
   temperature: 0,
@@ -189,6 +190,33 @@ describe("inline provider request coordination", () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.insertText).toBe("Name");
     expect(showWarningMessage).not.toHaveBeenCalled();
+    provider.dispose();
+  });
+
+  it("returns a bounded multi-line insertion with indentation intact", async () => {
+    const { InlineProvider } = await import("../src/completion/InlineProvider.js");
+    settings.maxLines = 2;
+    const fetch = () =>
+      Promise.resolve(
+        new Response(
+          '{"choices":[{"text":"const name = getName();\\n  return name;\\n  ignored();"}]}',
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      );
+    const provider = new InlineProvider({ fetch });
+
+    const result = await provider.provideInlineCompletionItems(
+      document as never,
+      position as never,
+      { triggerKind: 0 } as never,
+      token,
+    );
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.insertText).toBe("const name = getName();\n  return name;");
     provider.dispose();
   });
 
