@@ -1,5 +1,7 @@
 node_modules/
 dist/
+build/
+macos/**/.build/
 *.vsix
 .vscode-test/
 .e2e-out/

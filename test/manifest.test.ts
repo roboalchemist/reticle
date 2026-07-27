@@ -31,7 +31,7 @@ describe("extension manifest", () => {
       galleryBanner: { color: "#071B3D", theme: "dark" },
       repository: {
         type: "git",
-        url: "https://github.com/roboalchemist/reticle.git",
+        url: "https://github.com/roboalchemist/reticle-mlx.git",
       },
     });
     expect(manifest.categories).toEqual(

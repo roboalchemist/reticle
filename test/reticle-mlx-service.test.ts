@@ -18,54 +18,70 @@ afterEach(() => {
   }
 });
 
-describe("Seed MLX service helper", () => {
+describe("Reticle MLX service helper", () => {
   it("uses the installed command name and documents cache controls", () => {
-    const directory = mkdtempSync(join(tmpdir(), "reticle-seed-mlx-"));
+    const directory = mkdtempSync(join(tmpdir(), "reticle-mlx-"));
     temporaryDirectories.push(directory);
-    const installedCommand = join(directory, "reticle-seed-mlx");
-    symlinkSync(join(process.cwd(), "scripts", "seed-mlx-service"), installedCommand);
+    const installedCommand = join(directory, "reticle-mlx");
+    symlinkSync(join(process.cwd(), "scripts", "reticle-mlx"), installedCommand);
 
     const result = spawnSync(installedCommand, ["--help"], { encoding: "utf8" });
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("Usage: reticle-seed-mlx COMMAND");
-    expect(result.stdout).toContain("RETICLE_SEED_PROMPT_CACHE_SIZE");
-    expect(result.stdout).toContain("RETICLE_SEED_PROMPT_CACHE_BYTES");
-    expect(result.stdout).toContain("RETICLE_SEED_MLX_VERSION");
+    expect(result.stdout).toContain("Usage: reticle-mlx COMMAND");
+    expect(result.stdout).toContain("RETICLE_MLX_PROMPT_CACHE_SIZE");
+    expect(result.stdout).toContain("RETICLE_MLX_PROMPT_CACHE_BYTES");
+    expect(result.stdout).toContain("RETICLE_MLX_FIM_FORMAT");
+    expect(result.stdout).toContain("RETICLE_MLX_MLX_VERSION");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("monitor");
   });
 
   it("rejects invalid port and prompt cache settings before external work", () => {
-    const command = join(process.cwd(), "scripts", "seed-mlx-service");
+    const command = join(process.cwd(), "scripts", "reticle-mlx");
     const invalidPort = spawnSync(command, ["--help"], {
       encoding: "utf8",
-      env: { ...process.env, RETICLE_SEED_PORT: "70000" },
+      env: { ...process.env, RETICLE_MLX_PORT: "70000" },
     });
     const invalidCache = spawnSync(command, ["--help"], {
       encoding: "utf8",
-      env: { ...process.env, RETICLE_SEED_PROMPT_CACHE_SIZE: "0" },
+      env: { ...process.env, RETICLE_MLX_PROMPT_CACHE_SIZE: "0" },
+    });
+    const invalidFormat = spawnSync(command, ["--help"], {
+      encoding: "utf8",
+      env: { ...process.env, RETICLE_MLX_FIM_FORMAT: "chat" },
     });
 
     expect(invalidPort.status).toBe(1);
     expect(invalidPort.stderr).toContain("must be at most 65535");
     expect(invalidCache.status).toBe(1);
     expect(invalidCache.stderr).toContain("must be a positive integer");
+    expect(invalidFormat.status).toBe(1);
+    expect(invalidFormat.stderr).toContain("must be seed, qwen, or openai");
   });
 
-  it("diagnoses the installed service and verifies Seed FIM behavior", () => {
-    const home = mkdtempSync(join(tmpdir(), "reticle-seed-mlx-home-"));
+  it("loads the installed model format and verifies real FIM behavior", () => {
+    const home = mkdtempSync(join(tmpdir(), "reticle-mlx-home-"));
     temporaryDirectories.push(home);
     const bin = join(home, "bin");
-    const venvBin = join(home, ".reticle", "seed-mlx", "venv", "bin");
+    const venvBin = join(home, ".reticle", "mlx", "venv", "bin");
     const launchAgents = join(home, "Library", "LaunchAgents");
     mkdirSync(bin, { recursive: true });
     mkdirSync(venvBin, { recursive: true });
     mkdirSync(launchAgents, { recursive: true });
 
     writeExecutable(join(venvBin, "mlx_lm.server"), "#!/bin/sh\nexit 0\n");
-    writeExecutable(join(venvBin, "python"), "#!/bin/sh\nprintf '%s\\n' '0.31.1 0.30.5'\n");
+    writeExecutable(
+      join(venvBin, "python"),
+      `#!/bin/sh
+if [ "$1" = "-c" ]; then
+  printf '%s\\n' '0.31.1 0.30.5'
+else
+  exec /usr/bin/python3 "$@"
+fi
+`,
+    );
     writeExecutable(join(bin, "launchctl"), "#!/bin/sh\nexit 0\n");
     writeExecutable(
       join(bin, "plutil"),
@@ -87,6 +103,7 @@ case "$2" in
   ProgramArguments.12) printf '%s\\n' 2147483648 ;;
   ProgramArguments.13) printf '%s\\n' --log-level ;;
   ProgramArguments.14) printf '%s\\n' INFO ;;
+  EnvironmentVariables.RETICLE_MLX_FIM_FORMAT) printf '%s\\n' qwen ;;
   status) printf '%s\\n' ok ;;
   choices.0.text) printf '%s\\n' suffixOnlyIdentifier ;;
   *) exit 1 ;;
@@ -101,7 +118,12 @@ case "$*" in
     printf '%s\\n' '{"status":"ok"}'
     ;;
   *http://127.0.0.1:8124/v1/completions*)
-    printf '%s\\n' '{"choices":[{"text":"suffixOnlyIdentifier"}]}'
+    case "$*" in
+      *'<|fim_prefix|>'*'<|fim_suffix|>'*'<|fim_middle|>'*)
+        printf '%s\\n' '{"choices":[{"text":"suffixOnlyIdentifier"}]}'
+        ;;
+      *) exit 22 ;;
+    esac
     ;;
   *)
     exit 22
@@ -111,7 +133,7 @@ esac
     );
 
     writeFileSync(
-      join(launchAgents, "io.github.roboalchemist.reticle.seed-mlx.plist"),
+      join(launchAgents, "io.github.roboalchemist.reticle-mlx.plist"),
       "<plist><dict><key>ProgramArguments</key><array/></dict></plist>\n",
     );
 
@@ -121,17 +143,18 @@ esac
       PATH: `${bin}:/usr/bin:/bin`,
     };
     for (const name of [
-      "RETICLE_SEED_MODEL",
-      "RETICLE_SEED_PORT",
-      "RETICLE_SEED_PROMPT_CACHE_SIZE",
-      "RETICLE_SEED_PROMPT_CACHE_BYTES",
-      "RETICLE_SEED_HOME",
-      "RETICLE_SEED_VENV",
+      "RETICLE_MLX_MODEL",
+      "RETICLE_MLX_FIM_FORMAT",
+      "RETICLE_MLX_PORT",
+      "RETICLE_MLX_PROMPT_CACHE_SIZE",
+      "RETICLE_MLX_PROMPT_CACHE_BYTES",
+      "RETICLE_MLX_HOME",
+      "RETICLE_MLX_VENV",
     ]) {
       delete env[name];
     }
 
-    const result = spawnSync(join(process.cwd(), "scripts", "seed-mlx-service"), ["doctor"], {
+    const result = spawnSync(join(process.cwd(), "scripts", "reticle-mlx"), ["doctor"], {
       encoding: "utf8",
       env,
     });
@@ -140,10 +163,11 @@ esac
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("configured endpoint: http://127.0.0.1:8124");
     expect(result.stdout).toContain("configured model: example/seed-mlx");
+    expect(result.stdout).toContain("configured FIM format: qwen");
     expect(result.stdout).toContain("configured cache: entries=6 bytes=2147483648");
     expect(result.stdout).toContain("PASS runtime: mlx-lm=0.31.1 mlx=0.30.5");
     expect(result.stdout).toContain("PASS health: status=ok");
     expect(result.stdout).toContain("PASS FIM probe: suffixOnlyIdentifier");
-    expect(result.stdout).toContain("Reticle Seed MLX doctor: pass");
+    expect(result.stdout).toContain("Reticle MLX doctor: pass");
   });
 });
