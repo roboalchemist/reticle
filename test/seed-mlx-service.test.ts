@@ -32,6 +32,7 @@ describe("Seed MLX service helper", () => {
     expect(result.stdout).toContain("Usage: reticle-seed-mlx COMMAND");
     expect(result.stdout).toContain("RETICLE_SEED_PROMPT_CACHE_SIZE");
     expect(result.stdout).toContain("RETICLE_SEED_PROMPT_CACHE_BYTES");
+    expect(result.stdout).toContain("RETICLE_SEED_MLX_VERSION");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("monitor");
   });
@@ -64,6 +65,7 @@ describe("Seed MLX service helper", () => {
     mkdirSync(launchAgents, { recursive: true });
 
     writeExecutable(join(venvBin, "mlx_lm.server"), "#!/bin/sh\nexit 0\n");
+    writeExecutable(join(venvBin, "python"), "#!/bin/sh\nprintf '%s\\n' '0.31.1 0.30.5'\n");
     writeExecutable(join(bin, "launchctl"), "#!/bin/sh\nexit 0\n");
     writeExecutable(
       join(bin, "plutil"),
@@ -139,6 +141,7 @@ esac
     expect(result.stdout).toContain("configured endpoint: http://127.0.0.1:8124");
     expect(result.stdout).toContain("configured model: example/seed-mlx");
     expect(result.stdout).toContain("configured cache: entries=6 bytes=2147483648");
+    expect(result.stdout).toContain("PASS runtime: mlx-lm=0.31.1 mlx=0.30.5");
     expect(result.stdout).toContain("PASS health: status=ok");
     expect(result.stdout).toContain("PASS FIM probe: suffixOnlyIdentifier");
     expect(result.stdout).toContain("Reticle Seed MLX doctor: pass");

@@ -26,7 +26,7 @@ reticle-seed-mlx doctor
 `install`:
 
 1. creates an isolated Python environment under `~/.reticle/seed-mlx`;
-2. installs the pinned MLX-LM runtime;
+2. installs the tested MLX-LM 0.31.1 + MLX 0.30.5 runtime pair;
 3. downloads
    [`roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4`](https://huggingface.co/roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4);
 4. installs a per-user LaunchAgent bound to `127.0.0.1:8001`;
@@ -78,7 +78,9 @@ reticle-seed-mlx start
 - `monitor` refreshes compact launchd and health state until interrupted.
 - `logs` follows both server logs.
 - `doctor` checks the executable, LaunchAgent, health endpoint, and a real
-  suffix-dependent insertion.
+  suffix-dependent insertion. It also rejects an untested MLX/MLX-LM version
+  pairing instead of trusting a health endpoint that may pass before generation
+  fails.
 
 Custom install settings are remembered in the LaunchAgent. Explicit
 environment variables override them:

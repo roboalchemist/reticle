@@ -18,6 +18,7 @@ port="${RETICLE_SEED_PORT:-8001}"
 prompt_cache_size="${RETICLE_SEED_PROMPT_CACHE_SIZE:-8}"
 prompt_cache_bytes="${RETICLE_SEED_PROMPT_CACHE_BYTES:-4294967296}"
 mlx_lm_version="${RETICLE_SEED_MLX_LM_VERSION:-0.31.1}"
+mlx_version="${RETICLE_SEED_MLX_VERSION:-0.30.5}"
 
 usage() {
   cat <<EOF
@@ -41,6 +42,7 @@ Environment:
   RETICLE_SEED_PROMPT_CACHE_SIZE Distinct MLX KV caches to retain (default: 8)
   RETICLE_SEED_PROMPT_CACHE_BYTES Maximum KV cache memory in bytes (default: 4294967296)
   RETICLE_SEED_MLX_LM_VERSION    MLX-LM version installed in the private venv (default: 0.31.1)
+  RETICLE_SEED_MLX_VERSION       MLX runtime version paired with MLX-LM (default: 0.30.5)
   RETICLE_SEED_PYTHON            Python 3 executable used to create the private venv
   RETICLE_SEED_HOME              Runtime directory (default: ~/.reticle/seed-mlx)
   RETICLE_SEED_VENV              Private Python environment override
@@ -112,7 +114,7 @@ install_runtime() {
     "${python_path}" -m venv "${venv_path}"
   fi
   "${venv_path}/bin/python" -m pip install --disable-pip-version-check --upgrade \
-    "mlx-lm==${mlx_lm_version}"
+    "mlx==${mlx_version}" "mlx-lm==${mlx_lm_version}"
 }
 
 download_model() {
@@ -334,6 +336,28 @@ run_doctor() {
     printf 'PASS executable: %s\n' "${server_path}"
   else
     printf 'FAIL executable: %s/bin/mlx_lm.server is missing\n' "${venv_path}" >&2
+    doctor_ok=0
+  fi
+
+  runtime_versions=""
+  if runtime_versions="$(
+    "${venv_path}/bin/python" -c \
+      'import importlib.metadata; print(importlib.metadata.version("mlx-lm"), importlib.metadata.version("mlx"))' \
+      2>/dev/null
+  )"; then
+    installed_mlx_lm="${runtime_versions%% *}"
+    installed_mlx="${runtime_versions#* }"
+    if [ "${installed_mlx_lm}" = "${mlx_lm_version}" ] &&
+      [ "${installed_mlx}" = "${mlx_version}" ]; then
+      printf 'PASS runtime: mlx-lm=%s mlx=%s\n' "${installed_mlx_lm}" "${installed_mlx}"
+    else
+      printf 'FAIL runtime: expected mlx-lm=%s mlx=%s, got mlx-lm=%s mlx=%s; rerun install\n' \
+        "${mlx_lm_version}" "${mlx_version}" \
+        "${installed_mlx_lm}" "${installed_mlx}" >&2
+      doctor_ok=0
+    fi
+  else
+    printf 'FAIL runtime: could not read MLX-LM and MLX versions\n' >&2
     doctor_ok=0
   fi
 
