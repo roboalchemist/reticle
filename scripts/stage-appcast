@@ -1,0 +1,64 @@
+#!/bin/bash
+
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+version="$(node -p "require('${repo_root}/package.json').version")"
+release_root="${repo_root}/build/release"
+dmg_path="${release_root}/Reticle-MLX-${version}.dmg"
+dist_root="${repo_root}/build/appcast/reticle-mlx"
+releases_dir="${dist_root}/releases"
+private_key_file="${RETICLE_SPARKLE_PRIVATE_KEY_FILE:-}"
+artifact_base_url="${RETICLE_SPARKLE_ARTIFACT_BASE_URL:-https://downloads.example.com/reticle-mlx/}"
+generate_appcast="${RETICLE_SPARKLE_GENERATE_APPCAST:-${repo_root}/macos/ReticleMLX/.build/artifacts/sparkle/Sparkle/bin/generate_appcast}"
+
+if [ -z "${private_key_file}" ] || [ ! -f "${private_key_file}" ]; then
+  printf 'error: RETICLE_SPARKLE_PRIVATE_KEY_FILE must name the exported Sparkle private key\n' >&2
+  exit 1
+fi
+if [ ! -f "${dmg_path}" ]; then
+  printf 'error: release DMG not found: %s\n' "${dmg_path}" >&2
+  exit 1
+fi
+if [ ! -x "${generate_appcast}" ]; then
+  printf 'error: Sparkle generate_appcast not found: %s\n' "${generate_appcast}" >&2
+  exit 1
+fi
+
+case "${dist_root}" in
+  "${repo_root}"/build/*) ;;
+  *) printf 'error: appcast directory escaped the repository build directory\n' >&2; exit 1 ;;
+esac
+
+rm -rf "${dist_root}"
+mkdir -p "${releases_dir}"
+cp "${dmg_path}" "${releases_dir}/"
+
+notes_path="${releases_dir}/Reticle-MLX-${version}.html"
+{
+  printf '%s\n' '<!doctype html>' '<html><head><meta charset="utf-8">'
+  printf '<title>Reticle MLX %s</title></head><body>\n' "${version}"
+  printf '<h1>Reticle MLX %s</h1>\n<ul>\n' "${version}"
+  awk -v version="${version}" '
+    $0 == "## " version { in_release = 1; next }
+    in_release && /^## / { exit }
+    in_release && /^- / {
+      sub(/^- /, "")
+      gsub(/&/, "\\&amp;")
+      gsub(/</, "\\&lt;")
+      gsub(/>/, "\\&gt;")
+      printf "<li>%s</li>\n", $0
+    }
+  ' "${repo_root}/CHANGELOG.md"
+  printf '%s\n' '</ul></body></html>'
+} > "${notes_path}"
+
+"${generate_appcast}" \
+  --download-url-prefix "${artifact_base_url}" \
+  --release-notes-url-prefix "${artifact_base_url}" \
+  --ed-key-file "${private_key_file}" \
+  "${releases_dir}"
+
+cp "${releases_dir}/appcast.xml" "${dist_root}/appcast.xml"
+grep -q 'sparkle:edSignature=' "${dist_root}/appcast.xml"
+printf 'Appcast staged: %s\n' "${dist_root}/appcast.xml"

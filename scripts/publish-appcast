@@ -1,0 +1,40 @@
+#!/bin/bash
+
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+version="$(node -p "require('${repo_root}/package.json').version")"
+dist_root="${repo_root}/build/appcast/reticle-mlx"
+appcast_path="${dist_root}/appcast.xml"
+artifact_path="${dist_root}/releases/Reticle-MLX-${version}.dmg"
+notes_path="${dist_root}/releases/Reticle-MLX-${version}.html"
+publisher="${RETICLE_APPCAST_PUBLISH_SCRIPT:-}"
+api_url="${RETICLE_APPCAST_API_URL:-}"
+api_token="${RETICLE_APPCAST_API_TOKEN:-}"
+
+if [ ! -f "${appcast_path}" ]; then
+  printf 'error: staged appcast not found; run scripts/stage-appcast first\n' >&2
+  exit 1
+fi
+if [ -z "${publisher}" ] || [ ! -x "${publisher}" ]; then
+  printf 'error: RETICLE_APPCAST_PUBLISH_SCRIPT must name the appcast publisher\n' >&2
+  exit 1
+fi
+if [ -z "${api_url}" ] || [ -z "${api_token}" ]; then
+  printf 'error: RETICLE_APPCAST_API_URL and RETICLE_APPCAST_API_TOKEN are required\n' >&2
+  exit 1
+fi
+
+appcast_vars="$(python3 "${repo_root}/scripts/extract-appcast-info.py" "${appcast_path}")"
+eval "${appcast_vars}"
+
+APPCAST_API_TOKEN="${api_token}" "${publisher}" \
+  --app reticle-mlx \
+  --version "${APPCAST_VERSION}" \
+  --build "${APPCAST_BUILD}" \
+  --channel stable \
+  --signature "${APPCAST_SIGNATURE}" \
+  --artifact "${artifact_path}" \
+  --notes-file "${notes_path}" \
+  --api-url "${api_url}" \
+  --min-os-version 13.0

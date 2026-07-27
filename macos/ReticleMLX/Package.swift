@@ -10,10 +10,22 @@ let package = Package(
     products: [
         .executable(name: "ReticleMLX", targets: ["ReticleMLX"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle.git", from: "2.9.1"),
+    ],
     targets: [
         .executableTarget(
             name: "ReticleMLX",
-            path: "Sources/ReticleMLX"
+            dependencies: [
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
+            path: "Sources/ReticleMLX",
+            linkerSettings: [
+                .unsafeFlags([
+                    "-Xlinker", "-rpath",
+                    "-Xlinker", "@executable_path/../Frameworks",
+                ]),
+            ]
         ),
         .testTarget(
             name: "ReticleMLXTests",

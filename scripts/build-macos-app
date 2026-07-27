@@ -10,6 +10,8 @@ contents_path="${app_path}/Contents"
 version="$(node -p "require('${repo_root}/package.json').version")"
 build_number="${RETICLE_BUILD_NUMBER:-${version}}"
 identity="${RETICLE_CODESIGN_IDENTITY:--}"
+sparkle_feed_url="${RETICLE_SPARKLE_FEED_URL:-}"
+sparkle_public_key="${RETICLE_SPARKLE_PUBLIC_ED_KEY:-}"
 
 case "${build_root}" in
   "${repo_root}"/build/*) ;;
@@ -24,11 +26,29 @@ mkdir -p "${contents_path}/MacOS" "${contents_path}/Resources" "${build_root}/Ap
 
 cp "${binary_dir}/ReticleMLX" "${contents_path}/MacOS/ReticleMLX"
 cp "${repo_root}/scripts/reticle-mlx" "${contents_path}/Resources/reticle-mlx"
+cp "${repo_root}/media/menu-bar-icon@2x.png" "${contents_path}/Resources/MenuBarIcon.png"
 cp "${package_dir}/Info.plist" "${contents_path}/Info.plist"
 chmod 755 "${contents_path}/MacOS/ReticleMLX" "${contents_path}/Resources/reticle-mlx"
 
+sparkle_framework="$(
+  find "${package_dir}/.build/artifacts/sparkle/Sparkle" \
+    -path '*/Sparkle.framework' -type d -print -quit
+)"
+if [ -z "${sparkle_framework}" ]; then
+  printf 'error: Sparkle.framework was not produced by Swift Package Manager\n' >&2
+  exit 1
+fi
+mkdir -p "${contents_path}/Frameworks"
+cp -R "${sparkle_framework}" "${contents_path}/Frameworks/Sparkle.framework"
+
 plutil -replace CFBundleShortVersionString -string "${version}" "${contents_path}/Info.plist"
 plutil -replace CFBundleVersion -string "${build_number}" "${contents_path}/Info.plist"
+if [ -n "${sparkle_feed_url}" ]; then
+  plutil -insert SUFeedURL -string "${sparkle_feed_url}" "${contents_path}/Info.plist"
+fi
+if [ -n "${sparkle_public_key}" ]; then
+  plutil -insert SUPublicEDKey -string "${sparkle_public_key}" "${contents_path}/Info.plist"
+fi
 
 icon_source="${repo_root}/media/app-icon-1024.png"
 iconset="${build_root}/AppIcon.iconset"
@@ -42,7 +62,7 @@ done
 iconutil -c icns "${iconset}" -o "${contents_path}/Resources/AppIcon.icns"
 
 if [ "${identity}" = "-" ]; then
-  codesign --force --sign - "${app_path}"
+  codesign --force --deep --sign - "${app_path}"
 else
   codesign --force --deep --strict --options runtime --timestamp \
     --entitlements "${package_dir}/ReticleMLX.entitlements" \

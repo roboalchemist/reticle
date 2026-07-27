@@ -21,5 +21,11 @@ docs/releasing.md
 macos/**
 build/**
 media/app-icon-1024.png
+media/menu-bar-icon.svg
+media/menu-bar-icon@2x.png
 scripts/build-macos-app
+scripts/extract-appcast-info.py
+scripts/publish-appcast
 scripts/release-macos-app
+scripts/stage-appcast
+scripts/__pycache__/**

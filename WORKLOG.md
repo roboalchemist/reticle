@@ -1,5 +1,13 @@
 # Worklog
 
+## 2026-07-27 — Sparkle auto-updates and current menu-bar mark
+
+- Mirrored PTTVox's Sparkle 2 architecture with an app-specific Ed25519 signing key, release-only feed configuration, signed appcast staging, publishing handoff, and a manual **Check for Updates…** menu item.
+- Keep ordinary development bundles unconfigured so they cannot poll or trust a production update feed accidentally. Release packaging now fails closed unless the feed URL, public key, and exported private key are provided.
+- The first Sparkle-enabled release is necessarily a bootstrap because existing 0.6.0 bundles contain no updater. Subsequent releases can update in-app after the bootstrap is installed once.
+- Replaced the state-dependent SF Symbol tray mark with a monochrome template derived from the selected rounded code-brackets-and-sparkle logo. The transparent white source is rendered at 36 pixels and displayed at 18 points so AppKit can tint it correctly in both menu-bar appearances.
+- SwiftPM 6.2 stalled in a login-Keychain lookup after resolving Sparkle's binary artifact, even though the official archive downloaded immediately with `curl`. Preloading the same verified upstream artifact allowed local validation; clean CI remains responsible for exercising the normal SwiftPM download path.
+
 ## 2026-07-27 — Reticle MLX native macOS companion
 
 - Renamed the public repository and local checkout to `reticle-mlx` while preserving the installed extension ID `roboalchemist.reticle`.

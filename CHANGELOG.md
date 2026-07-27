@@ -2,6 +2,13 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.7.0
+
+- Add Sparkle 2 automatic updates to the Reticle MLX menu-bar app, backed by a dedicated Ed25519 key and public signed appcast.
+- Add a manual **Check for Updates…** menu item plus release tooling for signed appcast staging, publishing, validation, and rollback.
+- Require update-feed configuration for Developer ID releases while leaving local development builds safely disconnected.
+- Replace the old state glyph in the macOS menu bar with a monochrome template derived from Reticle's current code-brackets-and-sparkle logo.
+
 ## 0.6.0
 
 - Rename the public repository and Apple Silicon companion to Reticle MLX while preserving the `roboalchemist.reticle` VS Code extension identity.
