@@ -2,6 +2,11 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.7.1
+
+- Enable prompt-free automatic update checks and automatic installation in configured Reticle MLX release bundles.
+- Keep update polling disabled in development bundles that do not carry both the production feed URL and Ed25519 public key.
+
 ## 0.7.0
 
 - Add Sparkle 2 automatic updates to the Reticle MLX menu-bar app, backed by a dedicated Ed25519 key and public signed appcast.
