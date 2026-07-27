@@ -1,5 +1,10 @@
 # Worklog
 
+## 2026-07-26 — Working macOS forced-completion shortcut
+
+- Audited the installed release and found that multi-line completion, MTPLX, and the local eight-line setting were healthy, but the published manifest and README still used `Cmd+Option+Space`.
+- Promoted the proven local `Option+\` workaround to the extension's default macOS binding and added manifest plus real extension-host coverage for both the binding and registered command.
+
 ## 2026-07-26 — Bounded multi-line inline completions
 
 - Confirmed the completion transport and VS Code inline item already support multi-line insertions; Reticle's sanitizer and stream boundary deliberately truncated at the first newline.

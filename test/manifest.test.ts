@@ -13,6 +13,7 @@ interface Manifest {
   activationEvents: string[];
   contributes: {
     commands: Array<{ command: string; title: string }>;
+    keybindings: Array<{ command: string; key: string; mac?: string; when?: string }>;
     configuration: {
       properties: Record<string, { default?: unknown; scope?: string }>;
     };
@@ -47,6 +48,15 @@ describe("extension manifest", () => {
         title: "Test Autocomplete Endpoint",
       }),
     );
+  });
+
+  it("uses a working macOS shortcut for forced inline completion", () => {
+    expect(manifest.contributes.keybindings).toContainEqual({
+      command: "reticle.triggerCompletion",
+      key: "ctrl+alt+space",
+      mac: "alt+\\",
+      when: "editorTextFocus && !editorHasSelection",
+    });
   });
 
   it("keeps the complete typed Reticle settings surface", () => {

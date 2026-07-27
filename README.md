@@ -109,7 +109,7 @@ Run **Reticle: Test Autocomplete Endpoint**. See the [complete MTPLX guide](docs
    }
    ```
 
-4. Run **Reticle: Test Autocomplete Endpoint** from the Command Palette. Then type after `return ` in a source file. Reticle shows ghost text; press `Tab` to accept the entire single- or multi-line suggestion. **Reticle: Trigger Inline Completion** (`Cmd+Alt+Space` on macOS, `Ctrl+Alt+Space` elsewhere) requests one manually.
+4. Run **Reticle: Test Autocomplete Endpoint** from the Command Palette. Then type after `return ` in a source file. Reticle shows ghost text; press `Tab` to accept the entire single- or multi-line suggestion. Suggestions trigger automatically after a short typing pause. To force one manually, press `Option+\` on macOS or `Ctrl+Alt+Space` elsewhere.
 
 Disable other inline-completion extensions while validating so their ghost text is not mistaken for Reticle's.
 
