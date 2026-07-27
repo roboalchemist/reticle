@@ -89,7 +89,7 @@ fi
       join(bin, "code"),
       `#!/bin/sh
 case "$1" in
-  --list-extensions) printf '%s\\n' 'roboalchemist.reticle@0.8.0' ;;
+  --list-extensions) printf '%s\\n' 'roboalchemist.reticle@0.8.1' ;;
   --install-extension) printf '%s\\n' 'Extension installed.' ;;
   *) exit 2 ;;
 esac
@@ -153,7 +153,7 @@ esac
       `{
   // Reticle's user-level settings
   "reticle.baseURL": "http://127.0.0.1:8124/v1",
-  "reticle.model": "example/seed-mlx",
+  "reticle.model": "default_model",
   "reticle.fimFormat": "qwen",
 }
 `,
@@ -208,8 +208,9 @@ esac
     );
     expect(extensionDoctor.status).toBe(0);
     expect(extensionDoctor.stderr).toBe("");
-    expect(extensionDoctor.stdout).toContain("PASS extension: roboalchemist.reticle@0.8.0");
+    expect(extensionDoctor.stdout).toContain("PASS extension: roboalchemist.reticle@0.8.1");
     expect(extensionDoctor.stdout).toContain("PASS VS Code setting: reticle.baseURL");
+    expect(extensionDoctor.stdout).toContain("PASS VS Code setting: reticle.model=default_model");
     expect(extensionDoctor.stdout).toContain("PASS endpoint: http://127.0.0.1:8124/health");
     expect(extensionDoctor.stdout).toContain(
       "PASS extension-shaped FIM probe: suffixOnlyIdentifier",

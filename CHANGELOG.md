@@ -2,6 +2,12 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.8.1
+
+- Make the packaged `reticle-mlx vscode-doctor` validate the MLX-LM API alias
+  (`default_model`) instead of incorrectly expecting the underlying Hugging
+  Face model ID.
+
 ## 0.8.0
 
 - Replace the model dropdown with five always-visible cards for Qwen 1.5B,

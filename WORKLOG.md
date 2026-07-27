@@ -1,5 +1,15 @@
 # Worklog
 
+## 2026-07-27 — Packaged VS Code doctor alias fix
+
+- The final Homebrew-installed 0.8.0 smoke test caught a mismatch that the app
+  path masked with explicit environment overrides: the standalone doctor sent
+  requests to `default_model` but compared VS Code settings against the
+  configured Hugging Face model ID.
+- Changed settings validation to use the same API-model variable as the FIM
+  request and added a regression fixture where the service model and API alias
+  intentionally differ.
+
 ## 2026-07-27 — Hybrid model manager and verified downloads
 
 - Replaced the preset dropdown with five full model cards and separate Download
