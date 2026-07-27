@@ -24,6 +24,8 @@ Usage: ${command_name} COMMAND
 
 Commands:
   install     Install MTPLX/model, create the user LaunchAgent, and wait for health
+  download    Download or resume the selected model with machine-readable progress
+  model-status Check whether the selected model is cached and MTPLX-compatible
   start       Load the previously installed LaunchAgent
   stop        Unload the LaunchAgent without deleting it
   restart     Restart the loaded LaunchAgent
@@ -139,6 +141,41 @@ load_installed_config() {
     installed_value="$(installed_config_value --paged-kv-quantization || true)"
     [ -z "${installed_value}" ] || kv_quantization="${installed_value}"
   fi
+}
+
+terminate_download() {
+  if [ -n "${download_pid:-}" ]; then
+    kill -CONT "${download_pid}" 2>/dev/null || true
+    kill -TERM "${download_pid}" 2>/dev/null || true
+    wait "${download_pid}" 2>/dev/null || true
+  fi
+  exit 143
+}
+
+download_model() {
+  install_mtplx
+  mtplx_path="$(resolve_mtplx)"
+  download_pid=""
+  trap terminate_download HUP INT TERM
+  "${mtplx_path}" pull "${model}" --progress-json --json &
+  download_pid=$!
+  printf 'RETICLE_DOWNLOAD_WORKER\t%s\n' "${download_pid}"
+  wait "${download_pid}"
+  download_status=$?
+  download_pid=""
+  trap - HUP INT TERM
+  return "${download_status}"
+}
+
+model_status() {
+  mtplx_path="$(resolve_mtplx)" || fail "mtplx executable not found"
+  inspection="$("${mtplx_path}" inspect "${model}" --json)" ||
+    fail "model is not downloaded or inspectable: ${model}"
+  can_run="$(printf '%s' "${inspection}" | json_value compatibility.can_run || true)"
+  mtp_exists="$(printf '%s' "${inspection}" | json_value mtp.exists || true)"
+  [ "${can_run}" = "true" ] && [ "${mtp_exists}" = "true" ] ||
+    fail "model is not a runnable native-MTP model: ${model}"
+  printf 'model: %s\nruntime: mtplx\nFIM format: qwen\n' "${model}"
 }
 
 install_mtplx() {
@@ -289,7 +326,29 @@ warm_fim_path() {
 }
 
 json_value() {
-  plutil -extract "${1}" raw -o - - 2>/dev/null
+  json_path="${1}"
+  json_input="$(cat)"
+  if json_output="$(
+    printf '%s' "${json_input}" |
+      plutil -extract "${json_path}" raw -o - - 2>/dev/null
+  )"; then
+    printf '%s\n' "${json_output}"
+    return
+  fi
+  command -v python3 >/dev/null 2>&1 || return 1
+  printf '%s' "${json_input}" |
+    python3 -c '
+import json
+import sys
+
+value = json.load(sys.stdin)
+for component in sys.argv[1].split("."):
+    value = value[int(component)] if isinstance(value, list) else value[component]
+if isinstance(value, bool):
+    print(str(value).lower())
+elif value is not None:
+    print(value)
+' "${json_path}"
 }
 
 run_doctor() {
@@ -424,6 +483,12 @@ case "${command}" in
     wait_for_health
     warm_fim_path
     ;;
+  download)
+    download_model
+    ;;
+  model-status)
+    model_status
+    ;;
   start)
     load_service
     wait_for_health
@@ -444,6 +509,8 @@ case "${command}" in
     else
       printf 'launchd: not loaded (%s)\n' "${service_target}"
     fi
+    printf 'endpoint: %s\nmodel: %s\nruntime: mtplx\nFIM format: qwen\n' \
+      "${base_url}" "${model}"
     curl -fsS --max-time 5 "${base_url}/health" | print_status_json
     ;;
   health)

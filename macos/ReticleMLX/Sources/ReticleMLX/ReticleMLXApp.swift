@@ -102,14 +102,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   @objc private func openSettings() {
     if settingsWindow == nil {
+      let visibleFrame =
+        NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1_000, height: 1_100)
+      let width = min(920, max(820, visibleFrame.width - 64))
+      let height = min(1_100, max(900, visibleFrame.height - 40))
       let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: 620, height: 600),
-        styleMask: [.titled, .closable, .miniaturizable],
+        contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+        styleMask: [.titled, .closable, .miniaturizable, .resizable],
         backing: .buffered,
         defer: false
       )
       window.title = "Reticle MLX Settings"
       window.contentView = NSHostingView(rootView: SettingsView(controller: controller))
+      window.contentMinSize = NSSize(width: 820, height: 900)
       window.isReleasedWhenClosed = false
       window.center()
       settingsWindow = window
@@ -163,8 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     guard let button = statusItem?.button else { return }
 
     let description = "Reticle MLX: \(state.title)"
-    if
-      let iconURL = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "png"),
+    if let iconURL = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "png"),
       let icon = NSImage(contentsOf: iconURL)
     {
       icon.size = NSSize(width: 18, height: 18)
@@ -172,11 +176,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       icon.accessibilityDescription = description
       button.image = icon
     } else {
-      button.image = NSImage(
-        systemSymbolName: "chevron.left.forwardslash.chevron.right",
-        accessibilityDescription: description
-      )
-      button.image?.isTemplate = true
+      let fallbackURL = Bundle.main.url(forResource: "AppLogo", withExtension: "png")
+      button.image = fallbackURL.flatMap(NSImage.init(contentsOf:))
+      button.image?.size = NSSize(width: 18, height: 18)
+      button.image?.accessibilityDescription = description
     }
     button.toolTip = description
   }

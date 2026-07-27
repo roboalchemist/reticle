@@ -34,6 +34,28 @@ struct CommandRunner {
       .first { FileManager.default.isExecutableFile(atPath: $0.path) }
   }
 
+  static func resolveMTPLXExecutable(
+    environment: [String: String] = ProcessInfo.processInfo.environment,
+    bundle: Bundle = .main
+  ) -> URL? {
+    if let override = environment["RETICLE_MTPLX_CLI"], !override.isEmpty {
+      return URL(fileURLWithPath: override)
+    }
+    if let bundled = bundle.url(forResource: "reticle-mtplx", withExtension: nil) {
+      return bundled
+    }
+    let candidates = [
+      "/opt/homebrew/bin/reticle-mtplx",
+      "/usr/local/bin/reticle-mtplx",
+      FileManager.default.currentDirectoryPath + "/scripts/mtplx-service",
+      FileManager.default.currentDirectoryPath + "/../../scripts/mtplx-service",
+    ]
+    return
+      candidates
+      .map(URL.init(fileURLWithPath:))
+      .first { FileManager.default.isExecutableFile(atPath: $0.path) }
+  }
+
   func run(_ command: String, environment overrides: [String: String] = [:]) async -> CommandResult
   {
     await Task.detached(priority: .userInitiated) {

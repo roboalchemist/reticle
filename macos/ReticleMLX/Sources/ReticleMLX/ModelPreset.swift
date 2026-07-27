@@ -1,61 +1,199 @@
 import Foundation
 
+enum ModelRuntime: String, CaseIterable {
+  case mlxLM = "mlx-lm"
+  case mtplx
+
+  var displayName: String {
+    switch self {
+    case .mlxLM: "MLX-LM"
+    case .mtplx: "MTPLX"
+    }
+  }
+}
+
 struct ModelPreset: Identifiable, Hashable {
   let id: String
   let name: String
+  let tagline: String
   let model: String
+  let requestModel: String
   let fimFormat: String
-  let note: String
+  let runtime: ModelRuntime
+  let defaultPort: Int
+  let summary: String
+  let downloadSizeBytes: Int64
+  let minimumMemoryGB: Int
+  let qualityScore: Int
+  let speedScore: Int
+  let memoryScore: Int
+  let badge: String?
 
   static let seedCoder = ModelPreset(
     id: "seed-coder-8b",
-    name: "Seed-Coder 8B — quality",
+    name: "Seed-Coder 8B",
+    tagline: "Best tested completion quality",
     model: "roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4",
+    requestModel: "default_model",
     fimFormat: "seed",
-    note: "Best completion quality in Reticle's Mac tests; about 3.6 GB."
+    runtime: .mlxLM,
+    defaultPort: 8001,
+    summary:
+      "Reticle’s recommended model for accurate multi-language, multi-line edits. Our mixed 3/4-bit build preserves quality while improving Mac decode speed.",
+    downloadSizeBytes: 3_600_000_000,
+    minimumMemoryGB: 16,
+    qualityScore: 5,
+    speedScore: 3,
+    memoryScore: 3,
+    badge: "Recommended"
+  )
+
+  static let qwenCoder1Point5B = ModelPreset(
+    id: "qwen-coder-1.5b",
+    name: "Qwen2.5-Coder 1.5B",
+    tagline: "Fastest and lightest",
+    model: "mlx-community/Qwen2.5-Coder-1.5B-4bit",
+    requestModel: "default_model",
+    fimFormat: "qwen",
+    runtime: .mlxLM,
+    defaultPort: 8001,
+    summary:
+      "The quickest way to get low-latency local suggestions. Ideal for smaller-memory Macs and short, frequent completions.",
+    downloadSizeBytes: 950_000_000,
+    minimumMemoryGB: 8,
+    qualityScore: 3,
+    speedScore: 5,
+    memoryScore: 5,
+    badge: "Fastest"
   )
 
   static let qwenCoder3B = ModelPreset(
     id: "qwen-coder-3b",
-    name: "Qwen2.5-Coder 3B — speed",
-    model: "mlx-community/Qwen2.5-Coder-3B-Instruct-4bit",
+    name: "Qwen2.5-Coder 3B",
+    tagline: "Balanced speed and quality",
+    model: "mlx-community/Qwen2.5-Coder-3B-4bit",
+    requestModel: "default_model",
     fimFormat: "qwen",
-    note: "Lower latency and memory use, with less reliable FIM quality than Seed."
+    runtime: .mlxLM,
+    defaultPort: 8001,
+    summary:
+      "A practical middle ground: stronger completions than the 1.5B model while remaining responsive on everyday Apple Silicon.",
+    downloadSizeBytes: 1_850_000_000,
+    minimumMemoryGB: 12,
+    qualityScore: 4,
+    speedScore: 4,
+    memoryScore: 4,
+    badge: "Balanced"
+  )
+
+  static let qwen35MTPLX = ModelPreset(
+    id: "qwen3.5-9b-mtplx",
+    name: "Qwen3.5 9B MTPLX",
+    tagline: "Fast speculative completion",
+    model: "Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed",
+    requestModel: "mtplx-qwen35-9b-optimized-speed",
+    fimFormat: "qwen",
+    runtime: .mtplx,
+    defaultPort: 8000,
+    summary:
+      "A verified native-MTP model served by MTPLX. Choose it for low-latency multi-line suggestions with speculative decoding and a persistent prompt cache.",
+    downloadSizeBytes: 8_695_123_128,
+    minimumMemoryGB: 16,
+    qualityScore: 4,
+    speedScore: 5,
+    memoryScore: 2,
+    badge: "Speculative"
+  )
+
+  static let codestral22B = ModelPreset(
+    id: "codestral-22b",
+    name: "Codestral 22B",
+    tagline: "Large-model code specialist",
+    model: "mlx-community/Codestral-22B-v0.1-4bit",
+    requestModel: "default_model",
+    fimFormat: "codestral",
+    runtime: .mlxLM,
+    defaultPort: 8001,
+    summary:
+      "A much larger FIM-native coding model for high-memory Macs. Choose it when richer completions matter more than latency or disk use.",
+    downloadSizeBytes: 12_500_000_000,
+    minimumMemoryGB: 32,
+    qualityScore: 4,
+    speedScore: 2,
+    memoryScore: 1,
+    badge: "Large"
   )
 
   static let custom = ModelPreset(
     id: "custom",
     name: "Custom MLX model",
+    tagline: "Advanced",
     model: "",
+    requestModel: "default_model",
     fimFormat: "openai",
-    note: "Use an MLX-LM model or local path that supports the selected FIM format."
+    runtime: .mlxLM,
+    defaultPort: 8001,
+    summary: "Use an MLX-LM model or local path that supports the selected FIM format.",
+    downloadSizeBytes: 0,
+    minimumMemoryGB: 0,
+    qualityScore: 0,
+    speedScore: 0,
+    memoryScore: 0,
+    badge: nil
   )
 
-  static let all = [seedCoder, qwenCoder3B, custom]
+  static let suggested = [qwenCoder1Point5B, qwenCoder3B, qwen35MTPLX, seedCoder, codestral22B]
+  static let all = suggested + [custom]
+
+  var formattedDownloadSize: String {
+    ByteCountFormatter.string(fromByteCount: downloadSizeBytes, countStyle: .file)
+  }
 }
 
 struct ServiceConfiguration: Equatable {
   var model: String
+  var requestModel: String
   var fimFormat: String
+  var runtime: ModelRuntime
   var port: Int
   var promptCacheSize: Int
   var promptCacheBytes: Int
 
   static let defaults = ServiceConfiguration(
     model: ModelPreset.seedCoder.model,
+    requestModel: ModelPreset.seedCoder.requestModel,
     fimFormat: ModelPreset.seedCoder.fimFormat,
+    runtime: ModelPreset.seedCoder.runtime,
     port: 8001,
     promptCacheSize: 8,
     promptCacheBytes: 4_294_967_296
   )
 
-  var environment: [String: String] {
+  var serviceEnvironment: [String: String] {
+    switch runtime {
+    case .mlxLM:
+      [
+        "RETICLE_MLX_MODEL": model,
+        "RETICLE_MLX_FIM_FORMAT": fimFormat,
+        "RETICLE_MLX_PORT": String(port),
+        "RETICLE_MLX_PROMPT_CACHE_SIZE": String(promptCacheSize),
+        "RETICLE_MLX_PROMPT_CACHE_BYTES": String(promptCacheBytes),
+      ]
+    case .mtplx:
+      [
+        "MTPLX_MODEL": model,
+        "MTPLX_PORT": String(port),
+        "MTPLX_SKIP_DOWNLOAD": "1",
+      ]
+    }
+  }
+
+  var vscodeEnvironment: [String: String] {
     [
-      "RETICLE_MLX_MODEL": model,
+      "RETICLE_MLX_MODEL": requestModel,
+      "RETICLE_MLX_API_MODEL": requestModel,
       "RETICLE_MLX_FIM_FORMAT": fimFormat,
       "RETICLE_MLX_PORT": String(port),
-      "RETICLE_MLX_PROMPT_CACHE_SIZE": String(promptCacheSize),
-      "RETICLE_MLX_PROMPT_CACHE_BYTES": String(promptCacheBytes),
     ]
   }
 
@@ -63,7 +201,7 @@ struct ServiceConfiguration: Equatable {
     """
     {
       "reticle.baseURL": "http://127.0.0.1:\(port)/v1",
-      "reticle.model": "\(model)",
+      "reticle.model": "\(requestModel)",
       "reticle.fimFormat": "\(fimFormat)",
       "reticle.temperature": 0,
       "reticle.maxTokens": 64,
@@ -78,8 +216,24 @@ struct ServiceConfiguration: Equatable {
     if let model = defaults.string(forKey: "model"), !model.isEmpty {
       configuration.model = model
     }
+    let savedRequestModel = defaults.string(forKey: "requestModel")
     if let format = defaults.string(forKey: "fimFormat"), !format.isEmpty {
       configuration.fimFormat = format
+    }
+    if let runtimeName = defaults.string(forKey: "runtime"),
+      let runtime = ModelRuntime(rawValue: runtimeName)
+    {
+      configuration.runtime = runtime
+    }
+    if let savedRequestModel, !savedRequestModel.isEmpty {
+      configuration.requestModel = savedRequestModel
+    } else if configuration.runtime == .mtplx {
+      configuration.requestModel =
+        ModelPreset.suggested.first {
+          $0.runtime == .mtplx && $0.model == configuration.model
+        }?.requestModel ?? ModelPreset.qwen35MTPLX.requestModel
+    } else {
+      configuration.requestModel = "default_model"
     }
     let port = defaults.integer(forKey: "port")
     if port > 0 {
@@ -99,7 +253,9 @@ struct ServiceConfiguration: Equatable {
   @MainActor
   func save(to defaults: UserDefaults = .standard) {
     defaults.set(model, forKey: "model")
+    defaults.set(requestModel, forKey: "requestModel")
     defaults.set(fimFormat, forKey: "fimFormat")
+    defaults.set(runtime.rawValue, forKey: "runtime")
     defaults.set(port, forKey: "port")
     defaults.set(promptCacheSize, forKey: "promptCacheSize")
     defaults.set(promptCacheBytes, forKey: "promptCacheBytes")

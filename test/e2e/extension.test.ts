@@ -192,7 +192,9 @@ suite("Reticle extension host", () => {
     const api = await extension.activate();
     const requestedFimFormat = process.env.RETICLE_INTEGRATION_FIM_FORMAT;
     const fimFormat =
-      requestedFimFormat === "seed" || requestedFimFormat === "qwen"
+      requestedFimFormat === "codestral" ||
+      requestedFimFormat === "seed" ||
+      requestedFimFormat === "qwen"
         ? requestedFimFormat
         : "openai";
     const liveSettings = {

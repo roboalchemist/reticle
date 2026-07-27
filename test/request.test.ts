@@ -32,6 +32,7 @@ describe("OpenAI-compatible FIM request", () => {
       prompt: "<|fim_prefix|>const value = <|fim_suffix|>;\n<|fim_middle|>",
       suffix: "",
       max_tokens: 32,
+      stop: ["<|fim_pad|>", "<|endoftext|>"],
       temperature: 0,
       stream: true,
     });
@@ -52,6 +53,34 @@ describe("OpenAI-compatible FIM request", () => {
       temperature: 0,
       stream: true,
     });
+  });
+
+  it("embeds Codestral prefix and suffix control tokens", () => {
+    expect(
+      buildCompletionsRequest("const value = user.", ";\n", "codestral", {
+        fimFormat: "codestral",
+        maxTokens: 48,
+        temperature: 0,
+      }),
+    ).toEqual({
+      model: "codestral",
+      prompt: "[SUFFIX];\n[PREFIX]const value = user.",
+      suffix: "",
+      max_tokens: 48,
+      stop: [";", "</s>"],
+      temperature: 0,
+      stream: true,
+    });
+  });
+
+  it("does not use a leading suffix newline as a Codestral stop sequence", () => {
+    expect(
+      buildCompletionsRequest("function body() {\n  ", "\n}\n", "codestral", {
+        fimFormat: "codestral",
+        maxTokens: 64,
+        temperature: 0,
+      }).stop,
+    ).toEqual(["</s>"]);
   });
 
   it("normalizes base URLs without duplicating the endpoint", () => {

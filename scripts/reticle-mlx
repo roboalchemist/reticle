@@ -17,6 +17,8 @@ log_dir="${RETICLE_MLX_LOG_DIR:-${data_dir}/logs}"
 stdout_log="${log_dir}/server.log"
 stderr_log="${log_dir}/server.error.log"
 model="${RETICLE_MLX_MODEL:-roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4}"
+configured_model="${model}"
+api_model="${RETICLE_MLX_API_MODEL:-default_model}"
 fim_format="${RETICLE_MLX_FIM_FORMAT:-seed}"
 port="${RETICLE_MLX_PORT:-8001}"
 prompt_cache_size="${RETICLE_MLX_PROMPT_CACHE_SIZE:-8}"
@@ -30,6 +32,9 @@ Usage: ${command_name} COMMAND
 
 Commands:
   install     Install the MLX runtime, selected model, and user LaunchAgent
+  download    Download the selected model without changing the running service
+  model-status
+              Report whether the selected model is completely cached
   start       Load the installed LaunchAgent and warm the FIM path
   stop        Unload the LaunchAgent without deleting it
   restart     Restart the LaunchAgent and warm the FIM path
@@ -38,11 +43,15 @@ Commands:
   monitor     Watch compact launchd and health state until interrupted
   logs        Follow service stdout and stderr
   doctor      Validate the runtime, service, endpoint, and real FIM behavior
+  vscode-install
+              Install or update the Reticle VS Code extension
+  vscode-doctor
+              Check the extension, user settings, endpoint, and real FIM behavior
   uninstall   Remove the LaunchAgent; runtime, model cache, and logs are preserved
 
 Environment:
   RETICLE_MLX_MODEL              Hugging Face model ID or local MLX model path
-  RETICLE_MLX_FIM_FORMAT         Reticle transport: seed, qwen, or openai (default: seed)
+  RETICLE_MLX_FIM_FORMAT         Reticle transport: codestral, seed, qwen, or openai
   RETICLE_MLX_PORT               Loopback port (default: 8001)
   RETICLE_MLX_PROMPT_CACHE_SIZE  Distinct MLX KV caches to retain (default: 8)
   RETICLE_MLX_PROMPT_CACHE_BYTES Maximum KV cache memory in bytes (default: 4294967296)
@@ -55,6 +64,8 @@ Environment:
   RETICLE_MLX_SKIP_DOWNLOAD      Set to 1 when the selected model is already cached
   RETICLE_MLX_SKIP_FIM_WARMUP    Set to 1 to skip the Reticle-shaped warmup request
   RETICLE_MLX_MONITOR_INTERVAL   Monitor refresh interval in seconds (default: 2)
+  RETICLE_CODE_BIN               VS Code command-line executable override
+  RETICLE_CODE_SETTINGS          VS Code user settings.json override
 EOF
 }
 
@@ -78,8 +89,8 @@ validate_options() {
   validate_positive_integer "${prompt_cache_size}" "RETICLE_MLX_PROMPT_CACHE_SIZE"
   validate_positive_integer "${prompt_cache_bytes}" "RETICLE_MLX_PROMPT_CACHE_BYTES"
   case "${fim_format}" in
-    seed|qwen|openai) ;;
-    *) fail "RETICLE_MLX_FIM_FORMAT must be seed, qwen, or openai" ;;
+    codestral|seed|qwen|openai) ;;
+    *) fail "RETICLE_MLX_FIM_FORMAT must be codestral, seed, qwen, or openai" ;;
   esac
 }
 
@@ -120,20 +131,331 @@ install_runtime() {
   if [ ! -x "${venv_path}/bin/python" ]; then
     "${python_path}" -m venv "${venv_path}"
   fi
+  if runtime_versions="$(
+    "${venv_path}/bin/python" -c \
+      'import importlib.metadata; print(importlib.metadata.version("mlx-lm"), importlib.metadata.version("mlx"))' \
+      2>/dev/null
+  )" &&
+    [ "${runtime_versions}" = "${mlx_lm_version} ${mlx_version}" ]; then
+    printf 'MLX runtime is ready (mlx-lm=%s, mlx=%s).\n' \
+      "${mlx_lm_version}" "${mlx_version}"
+    return
+  fi
+  printf 'Preparing the private MLX runtime...\n'
   "${venv_path}/bin/python" -m pip install --disable-pip-version-check --upgrade \
     "mlx==${mlx_version}" "mlx-lm==${mlx_lm_version}"
 }
 
 download_model() {
-  [ "${RETICLE_MLX_SKIP_DOWNLOAD:-0}" = "1" ] && return
-  [ -d "${model}" ] && return
+  if [ "${RETICLE_MLX_SKIP_DOWNLOAD:-0}" = "1" ]; then
+    printf 'Model download skipped by RETICLE_MLX_SKIP_DOWNLOAD.\n'
+    return
+  fi
+  if [ -d "${model}" ]; then
+    printf 'RETICLE_DOWNLOAD_PROGRESS\t{"downloadedBytes":1,"totalBytes":1,"file":"Local model","stage":"complete"}\n'
+    return
+  fi
   printf 'Downloading %s...\n' "${model}"
+  download_worker=""
+  terminate_download() {
+    if [ -n "${download_worker}" ]; then
+      kill -TERM "${download_worker}" 2>/dev/null || true
+    fi
+    exit 143
+  }
+  trap terminate_download HUP INT TERM
+  "${venv_path}/bin/python" - "${model}" <<'PY' &
+import json
+import sys
+import time
+
+from huggingface_hub import HfApi, hf_hub_download
+from tqdm.auto import tqdm
+
+repo_id = sys.argv[1]
+api = HfApi()
+
+
+def emit(downloaded, total, filename, stage):
+    print(
+        "RETICLE_DOWNLOAD_PROGRESS\t"
+        + json.dumps(
+            {
+                "downloadedBytes": int(downloaded),
+                "totalBytes": int(total),
+                "file": filename,
+                "stage": stage,
+            },
+            separators=(",", ":"),
+        ),
+        flush=True,
+    )
+
+
+emit(0, 0, "Reading model metadata", "metadata")
+info = api.model_info(repo_id, files_metadata=True)
+files = [
+    sibling
+    for sibling in info.siblings
+    if sibling.rfilename and sibling.rfilename != ".gitattributes"
+]
+total_bytes = sum(max(0, int(sibling.size or 0)) for sibling in files)
+completed_bytes = 0
+current_size = 0
+current_file = ""
+last_emit = 0.0
+
+
+class AggregateProgress(tqdm):
+    def display(self, msg=None, pos=None):
+        global last_emit
+        now = time.monotonic()
+        if now - last_emit >= 0.1 or self.n >= (self.total or 0):
+            emit(
+                completed_bytes + min(int(self.n), current_size),
+                total_bytes,
+                current_file,
+                "downloading",
+            )
+            last_emit = now
+
+
+emit(0, total_bytes, "Starting download", "downloading")
+for sibling in files:
+    current_file = sibling.rfilename
+    current_size = max(0, int(sibling.size or 0))
+    emit(completed_bytes, total_bytes, current_file, "downloading")
+    hf_hub_download(
+        repo_id=repo_id,
+        filename=current_file,
+        revision=info.sha,
+        tqdm_class=AggregateProgress,
+    )
+    completed_bytes += current_size
+    emit(completed_bytes, total_bytes, current_file, "downloading")
+
+emit(total_bytes or 1, total_bytes or 1, "Download complete", "complete")
+PY
+  download_worker=$!
+  printf 'RETICLE_DOWNLOAD_WORKER\t%s\n' "${download_worker}"
+  if wait "${download_worker}"; then
+    download_worker=""
+    trap - HUP INT TERM
+    printf 'Downloaded %s.\n' "${model}"
+  else
+    download_status=$?
+    download_worker=""
+    trap - HUP INT TERM
+    return "${download_status}"
+  fi
+}
+
+model_status() {
+  if [ -d "${model}" ]; then
+    printf 'downloaded\t%s\n' "${model}"
+    return
+  fi
+  if [ ! -x "${venv_path}/bin/python" ]; then
+    printf 'missing\t%s\n' "${model}"
+    return 1
+  fi
   "${venv_path}/bin/python" - "${model}" <<'PY'
 import sys
-from huggingface_hub import snapshot_download
+from pathlib import Path
 
-snapshot_download(sys.argv[1])
+from huggingface_hub import try_to_load_from_cache
+from huggingface_hub.file_download import _CACHED_NO_EXIST
+
+model = sys.argv[1]
+config = try_to_load_from_cache(model, "config.json")
+if config is None or config is _CACHED_NO_EXIST:
+    print(f"missing\t{model}")
+    raise SystemExit(1)
+
+snapshot = Path(config).parent
+has_weights = any(snapshot.glob("*.safetensors"))
+has_tokenizer = any(snapshot.glob("tokenizer*"))
+if has_weights and has_tokenizer:
+    print(f"downloaded\t{model}")
+else:
+    print(f"partial\t{model}")
+    raise SystemExit(1)
 PY
+}
+
+prepare_server_model() {
+  if [ "${fim_format}" != "codestral" ] || [ -d "${model}" ]; then
+    printf '%s\n' "${model}"
+    return
+  fi
+  printf 'Preparing the official Codestral v3 FIM tokenizer overlay...\n' >&2
+  "${venv_path}/bin/python" - "${model}" "${data_dir}" <<'PY'
+import os
+import shutil
+import sys
+from pathlib import Path
+
+from huggingface_hub import hf_hub_download, try_to_load_from_cache
+
+model_id, data_dir = sys.argv[1:]
+cached_config = try_to_load_from_cache(model_id, "config.json")
+if not isinstance(cached_config, str):
+    raise RuntimeError(f"Codestral model is not completely cached: {model_id}")
+source = Path(cached_config).parent
+official_tokenizer = Path(
+    hf_hub_download(
+        "mistralai/Codestral-22B-v0.1",
+        filename="tokenizer.model.v3",
+    )
+)
+destination = Path(data_dir) / "prepared-models" / "codestral-22b-v0.1-4bit"
+destination.mkdir(parents=True, exist_ok=True)
+
+tokenizer_files = {
+    "tokenizer.json",
+    "tokenizer.model",
+    "tokenizer.model.v3",
+    "tokenizer_config.json",
+    "special_tokens_map.json",
+}
+for source_file in source.iterdir():
+    if source_file.name in tokenizer_files:
+        continue
+    target = destination / source_file.name
+    desired = source_file.resolve()
+    if target.is_symlink() and target.resolve() == desired:
+        continue
+    if target.exists() or target.is_symlink():
+        target.unlink()
+    target.symlink_to(desired)
+
+for name in ("tokenizer_config.json", "special_tokens_map.json"):
+    shutil.copy2(source / name, destination / name)
+shutil.copy2(official_tokenizer, destination / "tokenizer.model")
+print(destination)
+PY
+}
+
+resolve_code_cli() {
+  if [ -n "${RETICLE_CODE_BIN:-}" ]; then
+    [ -x "${RETICLE_CODE_BIN}" ] || return 1
+    printf '%s\n' "${RETICLE_CODE_BIN}"
+    return
+  fi
+  for candidate in /opt/homebrew/bin/code /usr/local/bin/code; do
+    if [ -x "${candidate}" ]; then
+      printf '%s\n' "${candidate}"
+      return
+    fi
+  done
+  candidate="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+  if [ -x "${candidate}" ]; then
+    printf '%s\n' "${candidate}"
+    return
+  fi
+  candidate="${HOME}/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+  if [ -x "${candidate}" ]; then
+    printf '%s\n' "${candidate}"
+    return
+  fi
+  return 1
+}
+
+install_vscode_extension() {
+  code_cli="$(resolve_code_cli)" ||
+    fail "Visual Studio Code was not found. Install it from https://code.visualstudio.com/"
+  printf 'Installing the Reticle VS Code extension...\n'
+  "${code_cli}" --install-extension roboalchemist.reticle --force
+}
+
+check_vscode_settings() {
+  settings_path="${RETICLE_CODE_SETTINGS:-${HOME}/Library/Application Support/Code/User/settings.json}"
+  if [ ! -f "${settings_path}" ]; then
+    printf 'FAIL VS Code settings: missing %s\n' "${settings_path}" >&2
+    return 1
+  fi
+  python_path="$(resolve_python)"
+  "${python_path}" - "${settings_path}" "${base_url}/v1" "${model}" "${fim_format}" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+path, expected_url, expected_model, expected_format = sys.argv[1:]
+text = Path(path).read_text(encoding="utf-8")
+ok = True
+for key, expected in (
+    ("reticle.baseURL", expected_url),
+    ("reticle.model", expected_model),
+    ("reticle.fimFormat", expected_format),
+):
+    match = re.search(r'"' + re.escape(key) + r'"\s*:\s*("(?:\\.|[^"\\])*")', text)
+    if match is None:
+        print(f"FAIL VS Code setting: {key} is not set", file=sys.stderr)
+        ok = False
+        continue
+    actual = json.loads(match.group(1))
+    if actual != expected:
+        print(
+            f"FAIL VS Code setting: {key} expected {expected!r}, got {actual!r}",
+            file=sys.stderr,
+        )
+        ok = False
+    else:
+        print(f"PASS VS Code setting: {key}={actual}")
+raise SystemExit(0 if ok else 1)
+PY
+}
+
+run_vscode_doctor() {
+  vscode_ok=1
+  printf 'Reticle VS Code doctor\n'
+  if code_cli="$(resolve_code_cli)"; then
+    printf 'PASS VS Code CLI: %s\n' "${code_cli}"
+    extension_list="$("${code_cli}" --list-extensions --show-versions 2>/dev/null || true)"
+    extension_version="$(
+      printf '%s\n' "${extension_list}" |
+        awk -F@ 'tolower($1) == "roboalchemist.reticle" { print $2; exit }'
+    )"
+    if [ -n "${extension_version}" ]; then
+      printf 'PASS extension: roboalchemist.reticle@%s\n' "${extension_version}"
+    else
+      printf 'FAIL extension: roboalchemist.reticle is not installed\n' >&2
+      vscode_ok=0
+    fi
+  else
+    printf 'FAIL VS Code CLI: Visual Studio Code was not found\n' >&2
+    vscode_ok=0
+  fi
+
+  check_vscode_settings || vscode_ok=0
+
+  if health_response="$(curl -fsS --max-time 5 "${base_url}/health")"; then
+    health_status="$(printf '%s' "${health_response}" | json_value status || true)"
+    health_ok="$(printf '%s' "${health_response}" | json_value ok || true)"
+  else
+    health_status=""
+    health_ok=""
+  fi
+  if [ "${health_status}" = "ok" ] || [ "${health_ok}" = "true" ]; then
+    printf 'PASS endpoint: %s/health\n' "${base_url}"
+  else
+    printf 'FAIL endpoint: GET %s/health failed\n' "${base_url}" >&2
+    vscode_ok=0
+  fi
+
+  if fim_response="$(curl -fsS --max-time 180 "${base_url}/v1/completions" \
+    -H 'Content-Type: application/json' -d "$(make_fim_payload)")" &&
+    [ "$(printf '%s' "${fim_response}" | json_value choices.0.text || true)" \
+      = "suffixOnlyIdentifier" ]; then
+    printf 'PASS extension-shaped FIM probe: suffixOnlyIdentifier\n'
+  else
+    printf 'FAIL extension-shaped FIM probe: expected suffixOnlyIdentifier\n' >&2
+    vscode_ok=0
+  fi
+
+  [ "${vscode_ok}" -eq 1 ] || exit 1
+  printf 'Reticle VS Code doctor: pass\n'
 }
 
 xml_escape() {
@@ -144,10 +466,12 @@ xml_escape() {
 
 write_plist() {
   server_path="${1}"
+  server_model="${2}"
   mkdir -p "$(dirname "${plist_path}")" "${log_dir}"
   plist_tmp="$(mktemp "${plist_path}.XXXXXX")"
   escaped_server="$(xml_escape "${server_path}")"
-  escaped_model="$(xml_escape "${model}")"
+  escaped_model="$(xml_escape "${server_model}")"
+  escaped_configured_model="$(xml_escape "${configured_model}")"
   escaped_format="$(xml_escape "${fim_format}")"
   escaped_stdout="$(xml_escape "${stdout_log}")"
   escaped_stderr="$(xml_escape "${stderr_log}")"
@@ -183,6 +507,8 @@ write_plist() {
     <string>${escaped_path}</string>
     <key>RETICLE_MLX_FIM_FORMAT</key>
     <string>${escaped_format}</string>
+    <key>RETICLE_MLX_CONFIGURED_MODEL</key>
+    <string>${escaped_configured_model}</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -233,8 +559,15 @@ installed_config_value() {
 load_installed_config() {
   [ -f "${plist_path}" ] || return
   if [ -z "${RETICLE_MLX_MODEL+x}" ]; then
-    installed_value="$(installed_config_value --model || true)"
+    installed_value="$(
+      plutil -extract EnvironmentVariables.RETICLE_MLX_CONFIGURED_MODEL raw -o - \
+        "${plist_path}" 2>/dev/null || true
+    )"
+    if [ -z "${installed_value}" ]; then
+      installed_value="$(installed_config_value --model || true)"
+    fi
     [ -z "${installed_value}" ] || model="${installed_value}"
+    configured_model="${model}"
   fi
   if [ -z "${RETICLE_MLX_PORT+x}" ]; then
     installed_value="$(installed_config_value --port || true)"
@@ -309,7 +642,7 @@ wait_for_health() {
 
 make_fim_payload() {
   python_path="$(resolve_python)"
-  "${python_path}" - "${model}" "${fim_format}" <<'PY'
+  "${python_path}" - "${api_model}" "${fim_format}" <<'PY'
 import json
 import sys
 
@@ -320,12 +653,19 @@ suffix = ";\n  return value;\n}\ninterface User { suffixOnlyIdentifier: string }
 if fim_format == "seed":
     prompt = f"<[fim-suffix]>{suffix}<[fim-prefix]>{prefix}<[fim-middle]>"
     request_suffix = ""
+    stop = ["\n"]
 elif fim_format == "qwen":
     prompt = f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>"
     request_suffix = ""
+    stop = ["\n", "<|fim_pad|>", "<|endoftext|>"]
+elif fim_format == "codestral":
+    prompt = f"[SUFFIX]{suffix}[PREFIX]{prefix}"
+    request_suffix = ""
+    stop = [suffix.splitlines()[0] or "\n", "</s>"]
 else:
     prompt = prefix
     request_suffix = suffix
+    stop = ["\n"]
 
 print(
     json.dumps(
@@ -336,7 +676,7 @@ print(
             "max_tokens": 8,
             "temperature": 0,
             "stream": False,
-            "stop": ["\n"],
+            "stop": stop,
         }
     )
 )
@@ -454,7 +794,7 @@ print_json() {
 
 command="${1:-}"
 case "${command}" in
-  start|restart|status|health|monitor|doctor)
+  start|restart|status|health|monitor|doctor|vscode-doctor)
     load_installed_config
     ;;
 esac
@@ -467,14 +807,24 @@ case "${command}" in
     unload_legacy_service
     install_runtime
     download_model
+    server_model="$(prepare_server_model)"
     server_path="$(resolve_server)" ||
       fail "MLX-LM server was not installed in ${venv_path}"
     unload_service
-    write_plist "${server_path}"
+    write_plist "${server_path}" "${server_model}"
     load_service
     wait_for_health
     warm_fim_path
     finish_legacy_migration
+    ;;
+  download)
+    validate_platform
+    install_runtime
+    download_model
+    prepare_server_model >/dev/null
+    ;;
+  model-status)
+    model_status
     ;;
   start)
     load_service
@@ -540,6 +890,12 @@ case "${command}" in
     ;;
   doctor)
     run_doctor
+    ;;
+  vscode-install)
+    install_vscode_extension
+    ;;
+  vscode-doctor)
+    run_vscode_doctor
     ;;
   uninstall)
     unload_service
