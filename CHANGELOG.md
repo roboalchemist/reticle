@@ -2,6 +2,11 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.3.2
+
+- Replace the dark crosshair-style extension icon with a lighter code-brackets-and-sparkle mark.
+- Add the deterministic SVG source and retain a crisp 128 px PNG for extension registries.
+
 ## 0.3.1
 
 - Remember custom model, port, profile, context, and KV settings from the installed LaunchAgent for later service commands.
