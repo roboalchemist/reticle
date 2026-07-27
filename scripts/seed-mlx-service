@@ -1,0 +1,489 @@
+#!/bin/sh
+
+set -eu
+
+service_label="io.github.roboalchemist.reticle.seed-mlx"
+command_name="${0##*/}"
+service_uid="$(id -u)"
+service_domain="gui/${service_uid}"
+service_target="${service_domain}/${service_label}"
+plist_path="${HOME}/Library/LaunchAgents/${service_label}.plist"
+data_dir="${RETICLE_SEED_HOME:-${HOME}/.reticle/seed-mlx}"
+venv_path="${RETICLE_SEED_VENV:-${data_dir}/venv}"
+log_dir="${RETICLE_SEED_LOG_DIR:-${data_dir}/logs}"
+stdout_log="${log_dir}/server.log"
+stderr_log="${log_dir}/server.error.log"
+model="${RETICLE_SEED_MODEL:-roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4}"
+port="${RETICLE_SEED_PORT:-8001}"
+prompt_cache_size="${RETICLE_SEED_PROMPT_CACHE_SIZE:-8}"
+prompt_cache_bytes="${RETICLE_SEED_PROMPT_CACHE_BYTES:-4294967296}"
+mlx_lm_version="${RETICLE_SEED_MLX_LM_VERSION:-0.31.1}"
+
+usage() {
+  cat <<EOF
+Usage: ${command_name} COMMAND
+
+Commands:
+  install     Create an isolated MLX-LM environment, download the model, and install the LaunchAgent
+  start       Load the previously installed LaunchAgent and warm the FIM path
+  stop        Unload the LaunchAgent without deleting it
+  restart     Restart the loaded LaunchAgent and warm the FIM path
+  status      Show installed configuration, launchd state, and server health
+  health      Print GET /health
+  monitor     Watch compact launchd and health state until interrupted
+  logs        Follow service stdout and stderr
+  doctor      Validate the runtime, service, health endpoint, and a real Seed FIM insertion
+  uninstall   Unload the service and remove its plist; environment, model cache, and logs are preserved
+
+Environment:
+  RETICLE_SEED_MODEL             Hugging Face model ID or local MLX model path
+  RETICLE_SEED_PORT              Loopback port (default: 8001)
+  RETICLE_SEED_PROMPT_CACHE_SIZE Distinct MLX KV caches to retain (default: 8)
+  RETICLE_SEED_PROMPT_CACHE_BYTES Maximum KV cache memory in bytes (default: 4294967296)
+  RETICLE_SEED_MLX_LM_VERSION    MLX-LM version installed in the private venv (default: 0.31.1)
+  RETICLE_SEED_PYTHON            Python 3 executable used to create the private venv
+  RETICLE_SEED_HOME              Runtime directory (default: ~/.reticle/seed-mlx)
+  RETICLE_SEED_VENV              Private Python environment override
+  RETICLE_SEED_LOG_DIR           Log directory override
+  RETICLE_SEED_SKIP_DOWNLOAD     Set to 1 when the selected model is already cached
+  RETICLE_SEED_SKIP_FIM_WARMUP   Set to 1 to skip the Reticle-shaped warmup request
+  RETICLE_SEED_MONITOR_INTERVAL  Monitor refresh interval in seconds (default: 2)
+EOF
+}
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+validate_positive_integer() {
+  value="${1}"
+  name="${2}"
+  case "${value}" in
+    ''|*[!0-9]*) fail "${name} must be a positive integer" ;;
+  esac
+  [ "${value}" -gt 0 ] || fail "${name} must be a positive integer"
+}
+
+validate_options() {
+  validate_positive_integer "${port}" "RETICLE_SEED_PORT"
+  [ "${port}" -le 65535 ] || fail "RETICLE_SEED_PORT must be at most 65535"
+  validate_positive_integer "${prompt_cache_size}" "RETICLE_SEED_PROMPT_CACHE_SIZE"
+  validate_positive_integer "${prompt_cache_bytes}" "RETICLE_SEED_PROMPT_CACHE_BYTES"
+}
+
+validate_platform() {
+  [ "$(uname -s)" = "Darwin" ] ||
+    fail "Seed MLX setup requires macOS"
+  [ "$(uname -m)" = "arm64" ] ||
+    fail "Seed MLX setup requires an Apple Silicon Mac"
+}
+
+resolve_python() {
+  if [ -n "${RETICLE_SEED_PYTHON:-}" ]; then
+    [ -x "${RETICLE_SEED_PYTHON}" ] ||
+      fail "RETICLE_SEED_PYTHON is not executable: ${RETICLE_SEED_PYTHON}"
+    printf '%s\n' "${RETICLE_SEED_PYTHON}"
+    return
+  fi
+  for candidate in /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3 /usr/local/bin/python3.12; do
+    if [ -x "${candidate}" ]; then
+      printf '%s\n' "${candidate}"
+      return
+    fi
+  done
+  if command -v python3 >/dev/null 2>&1; then
+    command -v python3
+    return
+  fi
+  fail "Python 3 was not found. Install it with: brew install python@3.12"
+}
+
+resolve_server() {
+  server_path="${venv_path}/bin/mlx_lm.server"
+  [ -x "${server_path}" ] || return 1
+  printf '%s\n' "${server_path}"
+}
+
+install_runtime() {
+  python_path="$(resolve_python)"
+  mkdir -p "${data_dir}"
+  if [ ! -x "${venv_path}/bin/python" ]; then
+    "${python_path}" -m venv "${venv_path}"
+  fi
+  "${venv_path}/bin/python" -m pip install --disable-pip-version-check --upgrade \
+    "mlx-lm==${mlx_lm_version}"
+}
+
+download_model() {
+  [ "${RETICLE_SEED_SKIP_DOWNLOAD:-0}" = "1" ] && return
+  if [ -d "${model}" ]; then
+    return
+  fi
+  printf 'Downloading %s...\n' "${model}"
+  "${venv_path}/bin/python" - "${model}" <<'PY'
+import sys
+from huggingface_hub import snapshot_download
+
+snapshot_download(sys.argv[1])
+PY
+}
+
+xml_escape() {
+  printf '%s' "$1" |
+    sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+      -e 's/"/\&quot;/g' -e "s/'/\&apos;/g"
+}
+
+write_plist() {
+  server_path="${1}"
+  mkdir -p "$(dirname "${plist_path}")" "${log_dir}"
+  plist_tmp="$(mktemp "${plist_path}.XXXXXX")"
+  escaped_server="$(xml_escape "${server_path}")"
+  escaped_model="$(xml_escape "${model}")"
+  escaped_stdout="$(xml_escape "${stdout_log}")"
+  escaped_stderr="$(xml_escape "${stderr_log}")"
+  escaped_path="$(xml_escape "${venv_path}/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")"
+  cat >"${plist_tmp}" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${service_label}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${escaped_server}</string>
+    <string>--model</string>
+    <string>${escaped_model}</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>${port}</string>
+    <string>--max-tokens</string>
+    <string>256</string>
+    <string>--prompt-cache-size</string>
+    <string>${prompt_cache_size}</string>
+    <string>--prompt-cache-bytes</string>
+    <string>${prompt_cache_bytes}</string>
+    <string>--log-level</string>
+    <string>INFO</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>${escaped_path}</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>${escaped_stdout}</string>
+  <key>StandardErrorPath</key>
+  <string>${escaped_stderr}</string>
+</dict>
+</plist>
+EOF
+  plutil -lint "${plist_tmp}" >/dev/null
+  chmod 600 "${plist_tmp}"
+  mv "${plist_tmp}" "${plist_path}"
+}
+
+installed_config_value() {
+  option_name="${1}"
+  argument_count="$(plutil -extract ProgramArguments raw -o - "${plist_path}" 2>/dev/null)" ||
+    return 1
+  case "${argument_count}" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+
+  argument_index=0
+  while [ "${argument_index}" -lt "${argument_count}" ]; do
+    argument_value="$(
+      plutil -extract "ProgramArguments.${argument_index}" raw -o - "${plist_path}" 2>/dev/null
+    )" || return 1
+    if [ "${argument_value}" = "${option_name}" ]; then
+      value_index=$((argument_index + 1))
+      [ "${value_index}" -lt "${argument_count}" ] || return 1
+      plutil -extract "ProgramArguments.${value_index}" raw -o - "${plist_path}" 2>/dev/null
+      return
+    fi
+    argument_index=$((argument_index + 1))
+  done
+  return 1
+}
+
+load_installed_config() {
+  [ -f "${plist_path}" ] || return
+
+  if [ -z "${RETICLE_SEED_MODEL+x}" ]; then
+    installed_value="$(installed_config_value --model || true)"
+    [ -z "${installed_value}" ] || model="${installed_value}"
+  fi
+  if [ -z "${RETICLE_SEED_PORT+x}" ]; then
+    installed_value="$(installed_config_value --port || true)"
+    [ -z "${installed_value}" ] || port="${installed_value}"
+  fi
+  if [ -z "${RETICLE_SEED_PROMPT_CACHE_SIZE+x}" ]; then
+    installed_value="$(installed_config_value --prompt-cache-size || true)"
+    [ -z "${installed_value}" ] || prompt_cache_size="${installed_value}"
+  fi
+  if [ -z "${RETICLE_SEED_PROMPT_CACHE_BYTES+x}" ]; then
+    installed_value="$(installed_config_value --prompt-cache-bytes || true)"
+    [ -z "${installed_value}" ] || prompt_cache_bytes="${installed_value}"
+  fi
+}
+
+service_loaded() {
+  launchctl print "${service_target}" >/dev/null 2>&1
+}
+
+load_service() {
+  [ -f "${plist_path}" ] || fail "service is not installed: ${plist_path}"
+  if service_loaded; then
+    launchctl kickstart -k "${service_target}"
+  else
+    launchctl bootstrap "${service_domain}" "${plist_path}"
+  fi
+}
+
+unload_service() {
+  if service_loaded; then
+    launchctl bootout "${service_target}"
+    sleep 1
+  fi
+}
+
+wait_for_health() {
+  attempt=0
+  while [ "${attempt}" -lt 300 ]; do
+    if curl -fsS --max-time 2 "${base_url}/health" >/dev/null 2>&1; then
+      printf 'Seed MLX is healthy at %s\n' "${base_url}"
+      return
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+  done
+  printf 'Seed MLX did not become healthy; inspect %s and %s\n' \
+    "${stdout_log}" "${stderr_log}" >&2
+  exit 1
+}
+
+make_fim_payload() {
+  python_path="$(resolve_python)"
+  "${python_path}" - "${model}" <<'PY'
+import json
+import sys
+
+prompt = (
+    "<[fim-suffix]>;\n"
+    "  return value;\n"
+    "}\n"
+    "interface User { suffixOnlyIdentifier: string }\n"
+    "<[fim-prefix]>"
+    "function select(user: User) {\n"
+    "  const value = user."
+    "<[fim-middle]>"
+)
+print(
+    json.dumps(
+        {
+            "model": sys.argv[1],
+            "prompt": prompt,
+            "max_tokens": 8,
+            "temperature": 0,
+            "stream": False,
+            "stop": ["\n"],
+        }
+    )
+)
+PY
+}
+
+warm_fim_path() {
+  [ "${RETICLE_SEED_SKIP_FIM_WARMUP:-0}" = "1" ] && return
+  printf 'Warming the Reticle Seed FIM request path...\n'
+  curl -fsS --max-time 180 "${base_url}/v1/completions" \
+    -H 'Content-Type: application/json' \
+    -d "$(make_fim_payload)" >/dev/null ||
+    fail "Seed MLX is healthy but the Reticle FIM warmup failed; inspect ${stderr_log}"
+  printf 'Reticle Seed FIM request path is warm.\n'
+}
+
+json_value() {
+  plutil -extract "${1}" raw -o - - 2>/dev/null
+}
+
+run_doctor() {
+  doctor_ok=1
+  printf 'Reticle Seed MLX doctor\n'
+  printf 'configured endpoint: %s\n' "${base_url}"
+  printf 'configured model: %s\n' "${model}"
+  printf 'configured cache: entries=%s bytes=%s\n' \
+    "${prompt_cache_size}" "${prompt_cache_bytes}"
+
+  if server_path="$(resolve_server)"; then
+    printf 'PASS executable: %s\n' "${server_path}"
+  else
+    printf 'FAIL executable: %s/bin/mlx_lm.server is missing\n' "${venv_path}" >&2
+    doctor_ok=0
+  fi
+
+  if [ -f "${plist_path}" ]; then
+    printf 'PASS service definition: %s\n' "${plist_path}"
+  else
+    printf 'FAIL service definition: missing %s\n' "${plist_path}" >&2
+    doctor_ok=0
+  fi
+
+  if service_loaded; then
+    printf 'PASS launchd: loaded (%s)\n' "${service_target}"
+  else
+    printf 'FAIL launchd: not loaded (%s)\n' "${service_target}" >&2
+    doctor_ok=0
+  fi
+
+  health_response=""
+  if health_response="$(curl -fsS --max-time 5 "${base_url}/health")"; then
+    health_status="$(printf '%s' "${health_response}" | json_value status || true)"
+    if [ "${health_status}" = "ok" ]; then
+      printf 'PASS health: status=ok\n'
+    else
+      printf 'FAIL health: expected status=ok, got %s\n' \
+        "${health_status:-unknown}" >&2
+      doctor_ok=0
+    fi
+  else
+    printf 'FAIL health: GET %s/health failed\n' "${base_url}" >&2
+    doctor_ok=0
+  fi
+
+  fim_response=""
+  if fim_response="$(curl -fsS --max-time 180 "${base_url}/v1/completions" \
+    -H 'Content-Type: application/json' -d "$(make_fim_payload)")"; then
+    completion="$(printf '%s' "${fim_response}" | json_value choices.0.text || true)"
+    if [ "${completion}" = "suffixOnlyIdentifier" ]; then
+      printf 'PASS FIM probe: suffixOnlyIdentifier\n'
+    else
+      printf 'FAIL FIM probe: expected suffixOnlyIdentifier, got %s\n' \
+        "${completion:-no completion}" >&2
+      doctor_ok=0
+    fi
+  else
+    printf 'FAIL FIM probe: POST %s/v1/completions failed\n' "${base_url}" >&2
+    doctor_ok=0
+  fi
+
+  [ "${doctor_ok}" -eq 1 ] || exit 1
+  printf 'Reticle Seed MLX doctor: pass\n'
+}
+
+print_json() {
+  if command -v jq >/dev/null 2>&1; then
+    jq .
+  else
+    cat
+  fi
+}
+
+command="${1:-}"
+case "${command}" in
+  start|restart|status|health|monitor|doctor)
+    load_installed_config
+    ;;
+esac
+base_url="http://127.0.0.1:${port}"
+validate_options
+
+case "${command}" in
+  install)
+    validate_platform
+    install_runtime
+    download_model
+    server_path="$(resolve_server)" ||
+      fail "MLX-LM server was not installed in ${venv_path}"
+    unload_service
+    write_plist "${server_path}"
+    load_service
+    wait_for_health
+    warm_fim_path
+    ;;
+  start)
+    load_service
+    wait_for_health
+    warm_fim_path
+    ;;
+  stop)
+    unload_service
+    printf 'Seed MLX service stopped; plist preserved at %s\n' "${plist_path}"
+    ;;
+  restart)
+    load_service
+    wait_for_health
+    warm_fim_path
+    ;;
+  status)
+    printf 'endpoint: %s\n' "${base_url}"
+    printf 'model: %s\n' "${model}"
+    printf 'prompt cache: entries=%s bytes=%s\n' \
+      "${prompt_cache_size}" "${prompt_cache_bytes}"
+    if service_loaded; then
+      printf 'launchd: loaded (%s)\n' "${service_target}"
+      launchctl print "${service_target}" 2>/dev/null |
+        awk '/^[[:space:]]*(state|pid|last exit code) =/ { sub(/^[[:space:]]*/, ""); print }'
+    else
+      printf 'launchd: not loaded (%s)\n' "${service_target}"
+    fi
+    curl -fsS --max-time 5 "${base_url}/health" | print_json
+    ;;
+  health)
+    curl -fsS --max-time 5 "${base_url}/health" | print_json
+    ;;
+  monitor)
+    interval="${RETICLE_SEED_MONITOR_INTERVAL:-2}"
+    validate_positive_integer "${interval}" "RETICLE_SEED_MONITOR_INTERVAL"
+    while :; do
+      printf '\033[2J\033[HReticle Seed MLX monitor — %s\n' "$(date)"
+      printf 'endpoint: %s\nmodel: %s\n' "${base_url}" "${model}"
+      if service_loaded; then
+        launchctl print "${service_target}" 2>/dev/null |
+          awk '/^[[:space:]]*(state|pid|last exit code) =/ { sub(/^[[:space:]]*/, ""); print }'
+      else
+        printf 'launchd: not loaded\n'
+      fi
+      curl -fsS --max-time 2 "${base_url}/health" 2>/dev/null || printf 'health: unavailable\n'
+      sleep "${interval}"
+    done
+    ;;
+  logs)
+    mkdir -p "${log_dir}"
+    touch "${stdout_log}" "${stderr_log}"
+    exec tail -n 100 -F "${stdout_log}" "${stderr_log}"
+    ;;
+  doctor)
+    run_doctor
+    ;;
+  uninstall)
+    unload_service
+    if [ -f "${plist_path}" ]; then
+      rm -f "${plist_path}"
+      printf 'Removed %s\n' "${plist_path}"
+    fi
+    printf 'The private MLX-LM environment, model cache, and logs were preserved.\n'
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
