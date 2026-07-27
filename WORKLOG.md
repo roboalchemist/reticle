@@ -61,3 +61,9 @@
 - Published the existing v0.3.1 GitHub release asset to Open VSX with the manual registry workflow. Open VSX's downloaded VSIX and published digest both match the GitHub release digest above.
 - Installed the public Open VSX download into an isolated VS Code profile and confirmed `roboalchemist.reticle@0.3.1`.
 - Open VSX renders a newly generated access token as plain text rather than a form field. Token automation must validate the extracted value before saving it or configuring CI.
+
+## 2026-07-26 — Lighter extension icon
+
+- Explored light, playful code-autocomplete marks after the original crosshair icon read as overly tactical.
+- Selected rounded code brackets around a completion sparkle, then rebuilt the concept as a deterministic three-color SVG rather than shipping generated raster artwork.
+- Rendered the registry PNG from the SVG and inspected downsampled 128 px, 32 px, and 16 px versions before packaging it into the extension.

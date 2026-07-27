@@ -2,7 +2,7 @@
   "name": "reticle",
   "displayName": "Reticle",
   "description": "BYOK fill-in-the-middle inline autocomplete for any OpenAI-compatible completions endpoint.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "roboalchemist",
   "license": "MIT",
   "private": false,

@@ -9,7 +9,7 @@ The selected model must actually support FIM. Reticle can send a separate OpenAI
 Install `roboalchemist.reticle` from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=roboalchemist.reticle) or [Open VSX](https://open-vsx.org/extension/roboalchemist/reticle). You can also download the VSIX from the [latest GitHub release](https://github.com/roboalchemist/reticle/releases/latest), then install it from VS Code's **Extensions: Install from VSIX...** command or the terminal:
 
 ```bash
-code --install-extension reticle-0.3.1.vsix
+code --install-extension reticle-0.3.2.vsix
 ```
 
 ## Quick start with MTPLX

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title>Reticle code completion sparkle</title>
+  <rect width="128" height="128" rx="28" fill="#f7f5ff" />
+  <path
+    d="M47 34 27 64l20 30"
+    fill="none"
+    stroke="#6574f7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="13"
+  />
+  <path
+    d="m81 34 20 30-20 30"
+    fill="none"
+    stroke="#6574f7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="13"
+  />
+  <path
+    d="M64 45c2.3 10.2 8.8 16.7 19 19-10.2 2.3-16.7 8.8-19 19-2.3-10.2-8.8-16.7-19-19 10.2-2.3 16.7-8.8 19-19Z"
+    fill="#ff7869"
+  />
+</svg>
