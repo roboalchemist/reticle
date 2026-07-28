@@ -12,6 +12,8 @@ All notable changes to Reticle are documented here.
 - Stop Qwen output at the existing suffix on the client as well as in the
   request, preventing repetition when a completion server ignores stop
   sequences.
+- Support a dedicated notarization keychain so signed macOS releases can run
+  non-interactively when the login keychain denies headless writes.
 - Compare 4-bit, 6-bit, and 8-bit MLX conversions on an M3 Max and document the
   full 33-case 4-bit versus 8-bit quality/latency tradeoff.
 
