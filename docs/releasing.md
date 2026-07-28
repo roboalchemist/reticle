@@ -31,6 +31,20 @@ xcrun notarytool store-credentials reticle-mlx-notary \
   --issuer ISSUER_ID
 ```
 
+For a headless session where the login keychain rejects writes, store the
+profile in a dedicated keychain instead:
+
+```bash
+notary_keychain="$HOME/.reticle/notary.keychain-db"
+notary_password="$(gopass show --password reticle-mlx/notary/keychain-password)"
+security unlock-keychain -p "$notary_password" "$notary_keychain"
+xcrun notarytool store-credentials reticle-mlx-notary \
+  --key ~/.appstoreconnect/private_keys/AuthKey_KEY_ID.p8 \
+  --key-id KEY_ID \
+  --issuer ISSUER_ID \
+  --keychain "$notary_keychain"
+```
+
 Build, sign, notarize, staple, and validate both ZIP and DMG:
 
 ```bash
@@ -39,6 +53,7 @@ gopass show --password reticle-mlx/sparkle/private-key > "${private_key_file}"
 
 RETICLE_CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAM_ID)" \
 RETICLE_NOTARY_PROFILE=reticle-mlx-notary \
+RETICLE_NOTARY_KEYCHAIN="${notary_keychain:-}" \
 RETICLE_SPARKLE_FEED_URL="https://updates.example.com/reticle-mlx/appcast.xml" \
 RETICLE_SPARKLE_PUBLIC_ED_KEY="$(gopass show --password reticle-mlx/sparkle/public-key)" \
 RETICLE_SPARKLE_PRIVATE_KEY_FILE="${private_key_file}" \

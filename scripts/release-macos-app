@@ -10,6 +10,7 @@ zip_path="${release_root}/Reticle-MLX-${version}.zip"
 dmg_path="${release_root}/Reticle-MLX-${version}.dmg"
 identity="${RETICLE_CODESIGN_IDENTITY:-}"
 notary_profile="${RETICLE_NOTARY_PROFILE:-reticle-mlx-notary}"
+notary_keychain="${RETICLE_NOTARY_KEYCHAIN:-}"
 sparkle_feed_url="${RETICLE_SPARKLE_FEED_URL:-}"
 sparkle_public_key="${RETICLE_SPARKLE_PUBLIC_ED_KEY:-}"
 sparkle_private_key_file="${RETICLE_SPARKLE_PRIVATE_KEY_FILE:-}"
@@ -26,6 +27,15 @@ fi
 if [ -z "${sparkle_private_key_file}" ] || [ ! -f "${sparkle_private_key_file}" ]; then
   printf 'error: RETICLE_SPARKLE_PRIVATE_KEY_FILE must name the exported Sparkle private key\n' >&2
   exit 1
+fi
+if [ -n "${notary_keychain}" ] && [ ! -f "${notary_keychain}" ]; then
+  printf 'error: RETICLE_NOTARY_KEYCHAIN does not exist: %s\n' "${notary_keychain}" >&2
+  exit 1
+fi
+
+notary_arguments=(--keychain-profile "${notary_profile}")
+if [ -n "${notary_keychain}" ]; then
+  notary_arguments+=(--keychain "${notary_keychain}")
 fi
 
 case "${release_root}" in
@@ -46,7 +56,7 @@ codesign -d --verbose=4 "${app_path}" 2>&1 |
   grep -E '^(Identifier|Authority|TeamIdentifier|Runtime Version)='
 
 ditto -c -k --keepParent "${app_path}" "${zip_path}"
-xcrun notarytool submit "${zip_path}" --keychain-profile "${notary_profile}" --wait
+xcrun notarytool submit "${zip_path}" "${notary_arguments[@]}" --wait
 xcrun stapler staple "${app_path}"
 xcrun stapler validate "${app_path}"
 spctl --assess --type execute --verbose=4 "${app_path}"
@@ -57,7 +67,7 @@ ditto -c -k --keepParent "${app_path}" "${zip_path}"
 hdiutil create -volname "Reticle MLX" -srcfolder "${app_path}" \
   -ov -format UDZO "${dmg_path}"
 codesign --force --timestamp --sign "${identity}" "${dmg_path}"
-xcrun notarytool submit "${dmg_path}" --keychain-profile "${notary_profile}" --wait
+xcrun notarytool submit "${dmg_path}" "${notary_arguments[@]}" --wait
 xcrun stapler staple "${dmg_path}"
 xcrun stapler validate "${dmg_path}"
 spctl --assess --type open --context context:primary-signature --verbose=4 "${dmg_path}"

@@ -227,3 +227,8 @@
   request stop and client-side stream/sanitizer guard, preserving multiline
   completion when the suffix begins on a later line. The single-line and
   bounded multiline live integration cases then passed.
+- The existing Developer ID identity was usable headlessly, but the login
+  keychain rejected `notarytool store-credentials` with “User interaction is
+  not allowed.” Created a dedicated password-protected notarization keychain,
+  kept its password in the encrypted secret store, and added an optional
+  `RETICLE_NOTARY_KEYCHAIN` path to both notarization submissions.
