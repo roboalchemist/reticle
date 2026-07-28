@@ -3,6 +3,18 @@ import XCTest
 @testable import ReticleMLX
 
 final class ReticleMLXTests: XCTestCase {
+  func testSettingsSidebarStartsWithGeneralAndSeparatesWorkflows() {
+    XCTAssertEqual(SettingsSection.defaultSection, .general)
+    XCTAssertEqual(
+      SettingsSection.allCases,
+      [.general, .models, .customModel, .vscodeSetup]
+    )
+    XCTAssertEqual(
+      SettingsSection.allCases.map(\.title),
+      ["General", "Models", "Custom Model", "VS Code Setup"]
+    )
+  }
+
   func testSparkleRequiresHTTPSFeedAndPublicKey() {
     XCTAssertFalse(SparkleUpdater.isConfigured(feedURL: nil, publicKey: nil))
     XCTAssertFalse(
