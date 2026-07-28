@@ -1,5 +1,15 @@
 # Worklog
 
+## 2026-07-27 — Resizable sidebar settings
+
+- Split the increasingly tall settings form into four focused sidebar
+  destinations: General, Models, Custom Model, and VS Code Setup. General is
+  deliberately the default so routine service controls remain one click away.
+- Put all validated presets in an independent scrolling model catalog and added
+  a compact card fallback for narrower windows.
+- Reduced the window's minimum size from 820×900 to 720×520 while retaining a
+  useful 980×760 initial size and unrestricted expansion.
+
 ## 2026-07-27 — Packaged VS Code doctor alias fix
 
 - The final Homebrew-installed 0.8.0 smoke test caught a mismatch that the app

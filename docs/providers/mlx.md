@@ -34,17 +34,19 @@ Or download `Reticle-MLX-<version>.dmg` from the
 [latest release](https://github.com/roboalchemist/reticle-mlx/releases/latest),
 open it, and copy **Reticle MLX.app** to Applications.
 
-Open the menu-bar icon and choose **Settings…**. The page lists every supported
-model as a card with its purpose, runtime, approximate download size, memory
-floor, and relative quality/speed/memory scores.
+Open the menu-bar icon and choose **Settings…**. The resizable window opens on
+**General**. Use the sidebar to switch between **Models**, **Custom Model**, and
+**VS Code Setup**. The Models tab is independently scrollable and lists every
+supported model as a card with its purpose, runtime, approximate download size,
+memory floor, and relative quality/speed/memory scores.
 
-1. Click **Download** on a model card. The progress bar reports real downloaded
+1. Open **Models** and click **Download** on a model card. The progress bar reports real downloaded
    bytes, transfer speed, and ETA. **Pause**, **Resume**, and **Cancel** control
    the actual download worker; already completed files are preserved.
-2. Click **Select**, then **Apply & Restart**. The app stops the other runtime
+2. Click **Select**, return to **General**, then click **Apply & Restart**. The app stops the other runtime
    before starting the selected one, so MLX-LM and MTPLX do not compete for
    memory.
-3. Click **Install VS Code Extension**.
+3. Open **VS Code Setup** and click **Install VS Code Extension**.
 4. Click **Copy VS Code Settings**, apply the copied settings, and run **VS Code
    Doctor**. The doctor checks VS Code, the installed extension, user settings,
    endpoint health, and a suffix-dependent live FIM insertion.

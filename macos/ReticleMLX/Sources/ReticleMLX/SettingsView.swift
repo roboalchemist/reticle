@@ -2,10 +2,40 @@ import AppKit
 import ServiceManagement
 import SwiftUI
 
+enum SettingsSection: String, CaseIterable, Identifiable {
+  case general
+  case models
+  case customModel
+  case vscodeSetup
+
+  static let defaultSection = SettingsSection.general
+
+  var id: String { rawValue }
+
+  var title: String {
+    switch self {
+    case .general: "General"
+    case .models: "Models"
+    case .customModel: "Custom Model"
+    case .vscodeSetup: "VS Code Setup"
+    }
+  }
+
+  var symbolName: String {
+    switch self {
+    case .general: "gearshape"
+    case .models: "shippingbox"
+    case .customModel: "slider.horizontal.3"
+    case .vscodeSetup: "chevron.left.forwardslash.chevron.right"
+    }
+  }
+}
+
 struct SettingsView: View {
   @ObservedObject var controller: ServiceController
   @ObservedObject private var downloads: ModelDownloadController
 
+  @State private var selectedSection = SettingsSection.defaultSection
   @State private var selectedPresetID = ModelPreset.seedCoder.id
   @State private var model = ServiceConfiguration.defaults.model
   @State private var requestModel = ServiceConfiguration.defaults.requestModel
@@ -16,7 +46,6 @@ struct SettingsView: View {
   @State private var cacheGigabytes = "4"
   @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
   @State private var loginItemError = ""
-  @State private var showCustomModel = false
 
   init(controller: ServiceController) {
     self.controller = controller
@@ -36,17 +65,20 @@ struct SettingsView: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      header
-      modelList
-      customModelSection
-      runtimeSection
-      integrationSection
-      activitySection
+    NavigationSplitView {
+      sidebar
+    } detail: {
+      detail
     }
-    .padding(22)
-    .frame(minWidth: 860, idealWidth: 920, maxWidth: .infinity)
-    .frame(minHeight: 980, idealHeight: 1_080, maxHeight: .infinity)
+    .navigationSplitViewStyle(.balanced)
+    .frame(
+      minWidth: 720,
+      idealWidth: 980,
+      maxWidth: .infinity,
+      minHeight: 520,
+      idealHeight: 720,
+      maxHeight: .infinity
+    )
     .onAppear {
       loadSavedConfiguration()
       Task {
@@ -56,13 +88,65 @@ struct SettingsView: View {
     }
   }
 
-  private var header: some View {
-    HStack(spacing: 12) {
-      BrandLogo(size: 48)
-      VStack(alignment: .leading, spacing: 2) {
-        Text("Reticle MLX")
+  private var sidebar: some View {
+    VStack(spacing: 0) {
+      HStack(spacing: 10) {
+        BrandLogo(size: 36)
+        VStack(alignment: .leading, spacing: 1) {
+          Text("Reticle MLX")
+            .font(.headline)
+          Text("Local autocomplete")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        Spacer()
+      }
+      .padding(.horizontal, 14)
+      .padding(.vertical, 12)
+
+      Divider()
+
+      List(SettingsSection.allCases, selection: $selectedSection) { section in
+        Label(section.title, systemImage: section.symbolName)
+          .tag(section)
+      }
+      .listStyle(.sidebar)
+      .accessibilityIdentifier("settings.sidebar")
+    }
+    .frame(minWidth: 180, idealWidth: 210, maxWidth: 240)
+  }
+
+  private var detail: some View {
+    VStack(spacing: 0) {
+      selectedPage
+      Divider()
+      activitySection
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  @ViewBuilder
+  private var selectedPage: some View {
+    switch selectedSection {
+    case .general:
+      generalPage
+    case .models:
+      modelsPage
+    case .customModel:
+      customModelPage
+    case .vscodeSetup:
+      vscodeSetupPage
+    }
+  }
+
+  private func pageHeader(_ title: String, subtitle: String) -> some View {
+    HStack(alignment: .top, spacing: 12) {
+      VStack(alignment: .leading, spacing: 3) {
+        Text(title)
           .font(.title2.bold())
-        Text("Choose, download, and run local models with MLX-LM or MTPLX")
+        Text(subtitle)
           .foregroundStyle(.secondary)
       }
       Spacer()
@@ -71,67 +155,187 @@ struct SettingsView: View {
     }
   }
 
-  private var modelList: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack(alignment: .firstTextBaseline) {
-        Text("Models")
-          .font(.headline)
-        Text("Measured and validated for fill-in-the-middle completion")
+  private var generalPage: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 16) {
+        pageHeader(
+          "General",
+          subtitle: "Manage the active model service, runtime, and startup behavior"
+        )
+        currentModelSection
+        runtimeSection
+        serviceSection
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(20)
+    }
+    .scrollIndicators(.automatic)
+    .accessibilityIdentifier("settings.general")
+  }
+
+  private var currentModelSection: some View {
+    let preset =
+      ModelPreset.all.first(where: { $0.id == selectedPresetID }) ?? ModelPreset.custom
+
+    return GroupBox("Current Model") {
+      HStack(alignment: .center, spacing: 14) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(preset.name)
+            .font(.headline)
+          Text(
+            selectedPresetID == ModelPreset.custom.id && !model.isEmpty
+              ? model : preset.tagline
+          )
           .font(.caption)
           .foregroundStyle(.secondary)
+          Text("\(runtime.displayName) · \(fimFormat) FIM · port \(port)")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
         Spacer()
+        Button("Browse Models") {
+          selectedSection = .models
+        }
+        Button("Custom Model") {
+          selectedSection = .customModel
+        }
       }
-
-      ForEach(ModelPreset.suggested) { preset in
-        modelCard(preset)
-      }
+      .padding(.top, 4)
     }
   }
 
-  private func modelCard(_ preset: ModelPreset) -> some View {
-    let selected = selectedPresetID == preset.id
-    let downloaded = downloads.isDownloaded(preset)
-    let active = downloads.active?.modelID == preset.id ? downloads.active : nil
+  private var modelsPage: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      pageHeader(
+        "Models",
+        subtitle: "Compare, download, and select validated fill-in-the-middle models"
+      )
 
-    return ModelCardView(
-      preset: preset,
-      selected: selected,
-      downloaded: downloaded,
-      active: active,
-      downloadDisabled: downloaded || downloads.isBusy || controller.isBusy,
-      onDownload: { controller.download(preset) },
-      onSelect: { select(preset) },
-      onPause: { downloads.pause() },
-      onResume: { downloads.resume() },
-      onCancel: { downloads.cancel() },
-      statusText: active.map(downloadStatus) ?? ""
-    )
+      ScrollView {
+        LazyVStack(alignment: .leading, spacing: 10) {
+          ForEach(ModelPreset.suggested) { preset in
+            modelCard(preset)
+          }
+        }
+        .padding(.vertical, 2)
+      }
+      .scrollIndicators(.visible)
+    }
+    .padding(20)
+    .accessibilityIdentifier("settings.models")
   }
 
-  private var customModelSection: some View {
-    DisclosureGroup("Custom model", isExpanded: $showCustomModel) {
-      VStack(alignment: .leading, spacing: 8) {
-        TextField("Hugging Face model ID or local MLX path", text: $model)
-          .onChange(of: model) { _ in
-            if !ModelPreset.suggested.contains(where: { $0.model == model }) {
-              selectedPresetID = ModelPreset.custom.id
-              requestModel = "default_model"
-              runtime = .mlxLM
+  private var customModelPage: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 16) {
+        pageHeader(
+          "Custom Model",
+          subtitle: "Configure an advanced MLX-LM model or local model directory"
+        )
+
+        GroupBox("Model") {
+          VStack(alignment: .leading, spacing: 10) {
+            TextField("Hugging Face model ID or local MLX path", text: $model)
+              .onChange(of: model) { _ in
+                if !ModelPreset.suggested.contains(where: { $0.model == model }) {
+                  selectCustomModel()
+                }
+              }
+            Picker("FIM format", selection: $fimFormat) {
+              Text("Codestral").tag("codestral")
+              Text("OpenAI suffix").tag("openai")
+              Text("Qwen PSM").tag("qwen")
+              Text("Seed SPM").tag("seed")
+            }
+            .pickerStyle(.segmented)
+            Text(ModelPreset.custom.summary)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+
+            HStack {
+              Button(
+                selectedPresetID == ModelPreset.custom.id
+                  ? "Custom Model Selected" : "Use Custom Model"
+              ) {
+                selectCustomModel()
+              }
+              .buttonStyle(.borderedProminent)
+              .disabled(model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+              Spacer()
+              Text("Custom models run through MLX-LM")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
           }
-        Picker("FIM format", selection: $fimFormat) {
-          Text("Codestral").tag("codestral")
-          Text("OpenAI suffix").tag("openai")
-          Text("Qwen PSM").tag("qwen")
-          Text("Seed SPM").tag("seed")
+          .padding(.top, 4)
         }
-        .pickerStyle(.segmented)
-        Text(ModelPreset.custom.summary)
-          .font(.caption)
-          .foregroundStyle(.secondary)
+
+        runtimeSection
       }
-      .padding(.top, 8)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(20)
     }
+    .scrollIndicators(.automatic)
+    .accessibilityIdentifier("settings.custom-model")
+  }
+
+  private var vscodeSetupPage: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 16) {
+        pageHeader(
+          "VS Code Setup",
+          subtitle: "Install Reticle, validate the connection, and copy the active settings"
+        )
+
+        GroupBox("Extension") {
+          VStack(alignment: .leading, spacing: 10) {
+            Text(
+              "Install or update Reticle from the VS Code Marketplace, then run a complete extension, settings, endpoint, and FIM check."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            HStack(spacing: 9) {
+              Button("Install VS Code Extension") {
+                Task { await controller.installVSCodeExtension() }
+              }
+              .buttonStyle(.borderedProminent)
+              .disabled(controller.isBusy)
+
+              Button("VS Code Doctor") {
+                Task { await controller.vscodeDoctor(configuration) }
+              }
+              .disabled(controller.isBusy || downloads.isBusy)
+            }
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.top, 4)
+        }
+
+        GroupBox("Active VS Code Settings") {
+          VStack(alignment: .leading, spacing: 10) {
+            Text(configuration.vscodeSettings)
+              .font(.system(.caption, design: .monospaced))
+              .textSelection(.enabled)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(10)
+              .background(
+                RoundedRectangle(cornerRadius: 7)
+                  .fill(Color(nsColor: .textBackgroundColor))
+              )
+            Button("Copy VS Code Settings") {
+              configuration.save()
+              controller.copyVSCodeSettings(configuration)
+            }
+            .disabled(configuration.model.isEmpty)
+          }
+          .padding(.top, 4)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(20)
+    }
+    .scrollIndicators(.automatic)
+    .accessibilityIdentifier("settings.vscode-setup")
   }
 
   private var runtimeSection: some View {
@@ -173,8 +377,8 @@ struct SettingsView: View {
     }
   }
 
-  private var integrationSection: some View {
-    GroupBox("Service & VS Code") {
+  private var serviceSection: some View {
+    GroupBox("Service") {
       HStack(spacing: 9) {
         Button(controller.state == .notInstalled ? "Install & Start Service" : "Apply & Restart") {
           Task { await controller.install(configuration) }
@@ -189,25 +393,8 @@ struct SettingsView: View {
           Task { await controller.doctor() }
         }
         .disabled(controller.isBusy || downloads.isBusy)
-
-        Divider().frame(height: 20)
-
-        Button("Install VS Code Extension") {
-          Task { await controller.installVSCodeExtension() }
-        }
-        .disabled(controller.isBusy)
-
-        Button("VS Code Doctor") {
-          Task { await controller.vscodeDoctor(configuration) }
-        }
-        .disabled(controller.isBusy || downloads.isBusy)
-
-        Button("Copy VS Code Settings") {
-          configuration.save()
-          controller.copyVSCodeSettings(configuration)
-        }
-        .disabled(configuration.model.isEmpty)
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
       .padding(.top, 4)
     }
   }
@@ -221,7 +408,7 @@ struct SettingsView: View {
           .textSelection(.enabled)
           .padding(.vertical, 4)
       }
-      .frame(minHeight: 72, maxHeight: 100)
+      .frame(minHeight: 62, maxHeight: 88)
     }
   }
 
@@ -236,6 +423,32 @@ struct SettingsView: View {
     return controller.output.isEmpty ? "No activity yet." : controller.output
   }
 
+  private func selectCustomModel() {
+    selectedPresetID = ModelPreset.custom.id
+    requestModel = ModelPreset.custom.requestModel
+    runtime = ModelPreset.custom.runtime
+  }
+
+  private func modelCard(_ preset: ModelPreset) -> some View {
+    let selected = selectedPresetID == preset.id
+    let downloaded = downloads.isDownloaded(preset)
+    let active = downloads.active?.modelID == preset.id ? downloads.active : nil
+
+    return ModelCardView(
+      preset: preset,
+      selected: selected,
+      downloaded: downloaded,
+      active: active,
+      downloadDisabled: downloaded || downloads.isBusy || controller.isBusy,
+      onDownload: { controller.download(preset) },
+      onSelect: { select(preset) },
+      onPause: { downloads.pause() },
+      onResume: { downloads.resume() },
+      onCancel: { downloads.cancel() },
+      statusText: active.map(downloadStatus) ?? ""
+    )
+  }
+
   private func select(_ preset: ModelPreset) {
     selectedPresetID = preset.id
     model = preset.model
@@ -243,7 +456,6 @@ struct SettingsView: View {
     fimFormat = preset.fimFormat
     runtime = preset.runtime
     port = String(preset.defaultPort)
-    showCustomModel = false
   }
 
   private func downloadStatus(_ progress: ModelDownloadProgress) -> String {
@@ -298,7 +510,6 @@ struct SettingsView: View {
       ModelPreset.suggested.first {
         $0.model == saved.model && $0.fimFormat == saved.fimFormat && $0.runtime == saved.runtime
       }?.id ?? ModelPreset.custom.id
-    showCustomModel = selectedPresetID == ModelPreset.custom.id
   }
 
   private func updateLoginItem(_ enabled: Bool) {
@@ -351,10 +562,17 @@ private struct ModelCardView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      HStack(alignment: .top, spacing: 12) {
-        description
-        Spacer(minLength: 12)
-        actions
+      ViewThatFits(in: .horizontal) {
+        HStack(alignment: .top, spacing: 12) {
+          description
+          Spacer(minLength: 12)
+          actions
+        }
+        VStack(alignment: .leading, spacing: 8) {
+          description
+          actions
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
       }
 
       HStack(spacing: 14) {

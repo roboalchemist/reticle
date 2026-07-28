@@ -2,6 +2,13 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.9.0
+
+- Replace the single tall settings form with a resizable macOS sidebar window
+  that opens on General and separates Models, Custom Model, and VS Code Setup.
+- Give the model catalog its own always-scrollable view and adapt model cards
+  to narrower window sizes.
+
 ## 0.8.1
 
 - Make the packaged `reticle-mlx vscode-doctor` validate the MLX-LM API alias

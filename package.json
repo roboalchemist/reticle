@@ -2,7 +2,7 @@
   "name": "reticle",
   "displayName": "Reticle",
   "description": "Local-first BYOK FIM autocomplete with multi-line ghost text for OpenAI-compatible completion endpoints.",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "publisher": "roboalchemist",
   "license": "MIT",
   "private": false,

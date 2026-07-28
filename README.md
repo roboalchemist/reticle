@@ -66,8 +66,10 @@ brew install --cask roboalchemist/tap/reticle-mlx
 open -g -a "Reticle MLX"
 ```
 
-Open **Settings…** from the menu-bar sparkle. The model list shows download
-size, minimum memory, runtime, and relative quality/speed/memory scores:
+Open **Settings…** from the menu-bar sparkle. The resizable settings window
+opens on **General** and keeps **Models**, **Custom Model**, and **VS Code
+Setup** in separate sidebar tabs. The scrollable model list shows download size,
+minimum memory, runtime, and relative quality/speed/memory scores:
 
 - **Qwen2.5-Coder 1.5B:** fastest and lightest;
 - **Qwen2.5-Coder 3B:** balanced speed and quality;

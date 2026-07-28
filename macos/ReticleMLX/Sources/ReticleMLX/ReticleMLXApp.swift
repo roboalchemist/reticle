@@ -103,9 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   @objc private func openSettings() {
     if settingsWindow == nil {
       let visibleFrame =
-        NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1_000, height: 1_100)
-      let width = min(920, max(820, visibleFrame.width - 64))
-      let height = min(1_100, max(900, visibleFrame.height - 40))
+        NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1_100, height: 800)
+      let width = min(980, max(720, visibleFrame.width - 80))
+      let height = min(760, max(520, visibleFrame.height - 80))
       let window = NSWindow(
         contentRect: NSRect(x: 0, y: 0, width: width, height: height),
         styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -114,7 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       )
       window.title = "Reticle MLX Settings"
       window.contentView = NSHostingView(rootView: SettingsView(controller: controller))
-      window.contentMinSize = NSSize(width: 820, height: 900)
+      window.contentMinSize = NSSize(width: 720, height: 520)
       window.isReleasedWhenClosed = false
       window.center()
       settingsWindow = window
