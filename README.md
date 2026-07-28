@@ -73,10 +73,12 @@ Activity split can be enlarged on every tab. The scrollable model list ranks the
 recommended model first and shows download size, minimum memory, runtime, and
 relative quality/speed/memory scores:
 
+- **Seed-Coder 8B:** best quality in Reticle's tested completion set;
+- **Zeta 7B:** Zed's edit-prediction fine-tune, optimized here as a 4-bit MLX
+  model for responsive cursor-local suggestions;
 - **Qwen2.5-Coder 1.5B:** fastest and lightest;
 - **Qwen2.5-Coder 3B:** balanced speed and quality;
 - **Qwen3.5 9B MTPLX:** speculative low-latency completion;
-- **Seed-Coder 8B:** best quality in Reticle's tested completion set; and
 - **Codestral 22B:** the large FIM-native option for high-memory Macs.
 
 Each card has separate **Download** and **Select** actions. Downloads report

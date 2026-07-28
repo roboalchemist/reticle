@@ -32,7 +32,7 @@ describe("OpenAI-compatible FIM request", () => {
       prompt: "<|fim_prefix|>const value = <|fim_suffix|>;\n<|fim_middle|>",
       suffix: "",
       max_tokens: 32,
-      stop: ["<|fim_pad|>", "<|endoftext|>"],
+      stop: [";", "<|fim_pad|>", "<|endoftext|>"],
       temperature: 0,
       stream: true,
     });

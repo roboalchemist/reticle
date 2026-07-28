@@ -30,6 +30,13 @@ function codestralStopSequences(suffix: string): string[] {
   return firstLine.length > 0 ? [firstLine, "</s>"] : ["</s>"];
 }
 
+function qwenStopSequences(suffix: string): string[] {
+  const firstLine = suffix.split(/\r?\n/, 1)[0] ?? "";
+  const controlTokens = ["<|fim_pad|>", "<|endoftext|>"];
+  const boundary = /^[}\])]$/u.test(firstLine) ? "" : firstLine;
+  return boundary.length > 0 ? [boundary, ...controlTokens] : controlTokens;
+}
+
 /** Build an OpenAI completions request with the configured FIM serialization. */
 export function buildCompletionsRequest(
   prefix: string,
@@ -43,7 +50,7 @@ export function buildCompletionsRequest(
       prompt: `${QWEN_FIM_PREFIX}${prefix}${QWEN_FIM_SUFFIX}${suffix}${QWEN_FIM_MIDDLE}`,
       suffix: "",
       max_tokens: settings.maxTokens,
-      stop: ["<|fim_pad|>", "<|endoftext|>"],
+      stop: qwenStopSequences(suffix),
       temperature: settings.temperature,
       stream: true,
     };

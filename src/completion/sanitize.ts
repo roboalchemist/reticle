@@ -68,6 +68,15 @@ function lineCount(value: string): number {
   return value.split(/\r\n|\r|\n/).length;
 }
 
+function truncateAtSuffixBoundary(value: string, suffix: string): string {
+  const firstLine = suffix.split(/\r?\n/, 1)[0] ?? "";
+  if (!firstLine || /^[}\])]$/u.test(firstLine)) {
+    return value;
+  }
+  const boundary = value.indexOf(firstLine);
+  return boundary >= 0 ? value.slice(0, boundary) : value;
+}
+
 function removeCursorOverlap(value: string, context: SanitizeContext): string {
   let insertion = value;
   if (/\s/.test(context.prefix.at(-1) ?? "")) {
@@ -95,7 +104,13 @@ function removeCursorOverlap(value: string, context: SanitizeContext): string {
 export function sanitizeCompletion(value: string, context: SanitizeContext): string {
   const normalized = stripMarkdownFence(value.replaceAll("\0", "").replace(/\r\n?|\n/g, "\n"));
   const insertion = limitLines(
-    removeCursorOverlap(normalized.replace(/<\|fim_(?:prefix|suffix|middle)\|>/g, ""), context),
+    removeCursorOverlap(
+      truncateAtSuffixBoundary(
+        normalized.replace(/<\|fim_(?:prefix|suffix|middle)\|>/g, ""),
+        context.suffix ?? "",
+      ),
+      context,
+    ),
     context.maxLines ?? 8,
   );
   const pattern = identifierCharacterPattern(context.languageId);
@@ -118,6 +133,11 @@ export function sanitizeCompletion(value: string, context: SanitizeContext): str
 
 export function reachedInlineBoundary(value: string, context: SanitizeContext): boolean {
   if (/(?:```|~~~|<\|fim_(?:prefix|suffix|middle)\|>)/.test(value)) {
+    return true;
+  }
+
+  const firstSuffixLine = (context.suffix ?? "").split(/\r?\n/, 1)[0] ?? "";
+  if (firstSuffixLine && value.includes(firstSuffixLine)) {
     return true;
   }
 
