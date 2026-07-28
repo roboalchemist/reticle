@@ -67,9 +67,11 @@ open -g -a "Reticle MLX"
 ```
 
 Open **Settings…** from the menu-bar sparkle. The resizable settings window
-opens on **General** and keeps **Models**, **Custom Model**, and **VS Code
-Setup** in separate sidebar tabs. The scrollable model list shows download size,
-minimum memory, runtime, and relative quality/speed/memory scores:
+opens on **General** and keeps **Models**, **Custom Model**, **Benchmark**, **VS
+Code Setup**, and **Logs** in a permanently visible sidebar. The draggable
+Activity split can be enlarged on every tab. The scrollable model list ranks the
+recommended model first and shows download size, minimum memory, runtime, and
+relative quality/speed/memory scores:
 
 - **Qwen2.5-Coder 1.5B:** fastest and lightest;
 - **Qwen2.5-Coder 3B:** balanced speed and quality;
@@ -83,6 +85,12 @@ completed files. Click **Apply & Restart**, then use **Install VS Code
 Extension** and **VS Code Doctor**. The app keeps the selected service
 loopback-only, shows health in the menu bar, exposes logs and a real
 suffix-dependent doctor, and can start at login.
+
+The **Benchmark** tab can start any downloaded preset and records streaming
+time-to-first-token, cold end-to-end latency, the median of three warm
+prompt-cache requests, and completion throughput. Results accumulate across
+models and can be copied as tab-separated text or exported as TSV. The **Logs**
+tab tails the active runtime's stdout/stderr with one-click copy and export.
 
 The same manager is available headlessly:
 

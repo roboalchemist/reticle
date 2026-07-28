@@ -35,10 +35,12 @@ Or download `Reticle-MLX-<version>.dmg` from the
 open it, and copy **Reticle MLX.app** to Applications.
 
 Open the menu-bar icon and choose **Settings…**. The resizable window opens on
-**General**. Use the sidebar to switch between **Models**, **Custom Model**, and
-**VS Code Setup**. The Models tab is independently scrollable and lists every
-supported model as a card with its purpose, runtime, approximate download size,
-memory floor, and relative quality/speed/memory scores.
+**General**. Its sidebar stays visible and switches between **Models**, **Custom
+Model**, **Benchmark**, **VS Code Setup**, and **Logs**. The Activity divider is
+draggable on every tab. The Models tab is independently scrollable, ranks
+recommended presets first, and lists every supported model as a card with its
+purpose, runtime, approximate download size, memory floor, and relative
+quality/speed/memory scores.
 
 1. Open **Models** and click **Download** on a model card. The progress bar reports real downloaded
    bytes, transfer speed, and ETA. **Pause**, **Resume**, and **Cancel** control
@@ -53,6 +55,30 @@ memory floor, and relative quality/speed/memory scores.
 
 The app can launch at login and provides service lifecycle controls, logs,
 health, automatic updates, and a model-specific doctor.
+
+## Benchmark models
+
+Open **Benchmark**, choose any downloaded preset, and click **Start Model &
+Benchmark**. This intentionally changes the active service to the selected
+model. Reticle sends the same FIM-shaped prompt once with a new prompt-cache
+session and three more times with that session warmed. It reports:
+
+- streaming time to first token (TTFT);
+- cold end-to-end request time;
+- median warm end-to-end request time; and
+- completion tokens per second.
+
+When a server omits token usage, Reticle marks throughput with `*` and estimates
+tokens from the streamed output. Results remain in the comparison table while
+the settings window is open. Use **Copy Results** for tab-separated clipboard
+output or **Export TSV…** for a file.
+
+## Inspect logs
+
+The **Logs** tab reads the active runtime's stdout and stderr without loading an
+unbounded file into the app. Use **Refresh Logs**, **Run Service Doctor**, **Copy
+All**, **Export…**, or **Open Folder**. This is the fastest way to diagnose a
+service that remains in **Starting or unhealthy**.
 
 ## Supported model cards
 

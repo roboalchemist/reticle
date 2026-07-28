@@ -3,15 +3,104 @@ import XCTest
 @testable import ReticleMLX
 
 final class ReticleMLXTests: XCTestCase {
+  func testBenchmarkRequestsUseTheSelectedFIMTransport() {
+    let marker = "fixture"
+
+    let seed = BenchmarkRequestFactory.make(
+      configuration: ServiceConfiguration.defaults,
+      marker: marker
+    )
+    XCTAssertTrue(seed.prompt.hasPrefix("<[fim-suffix]>"))
+    XCTAssertTrue(seed.prompt.contains("<[fim-prefix]>"))
+    XCTAssertEqual(seed.suffix, "")
+    XCTAssertTrue(seed.stream)
+
+    var qwenConfiguration = ServiceConfiguration.defaults
+    qwenConfiguration.fimFormat = "qwen"
+    let qwen = BenchmarkRequestFactory.make(
+      configuration: qwenConfiguration,
+      marker: marker
+    )
+    XCTAssertTrue(qwen.prompt.hasPrefix("<|fim_prefix|>"))
+    XCTAssertTrue(qwen.prompt.contains("<|fim_middle|>"))
+    XCTAssertEqual(qwen.stop, ["<|fim_pad|>", "<|endoftext|>"])
+  }
+
+  func testBenchmarkResultsCopyAsTabSeparatedValues() {
+    let result = ModelBenchmarkResult(
+      modelID: "example/model",
+      modelName: "Example",
+      runtime: "MLX-LM",
+      ttftMilliseconds: 12.34,
+      coldMilliseconds: 56.78,
+      warmMilliseconds: 34.56,
+      completionTokensPerSecond: 98.76,
+      tokenRateIsEstimated: true,
+      completedAt: Date(timeIntervalSince1970: 0)
+    )
+
+    XCTAssertTrue(ModelBenchmarkResult.tabSeparatedHeader.contains("TTFT (ms)"))
+    XCTAssertEqual(
+      result.tabSeparatedValues,
+      "Example\tMLX-LM\t12.3\t56.8\t34.6\t98.8\testimated"
+    )
+  }
+
+  func testLiveBenchmarkMeasuresTTFTAndCompletionRateWhenEnabled() async throws {
+    guard ProcessInfo.processInfo.environment["RETICLE_LIVE_BENCHMARK"] == "1" else {
+      throw XCTSkip("Set RETICLE_LIVE_BENCHMARK=1 with the default service running.")
+    }
+
+    let sample = try await CompletionBenchmarkClient.run(
+      configuration: ServiceConfiguration.defaults,
+      sessionID: "reticle-live-test-\(UUID().uuidString)",
+      marker: UUID().uuidString
+    )
+
+    XCTAssertGreaterThan(sample.ttftSeconds, 0)
+    XCTAssertGreaterThanOrEqual(sample.totalSeconds, sample.ttftSeconds)
+    XCTAssertGreaterThan(sample.completionTokens, 0)
+    XCTAssertGreaterThan(sample.tokensPerSecond, 0)
+  }
+
+  func testServiceLogReaderFindsRuntimeLogsAndBoundsOutput() throws {
+    let home = FileManager.default.temporaryDirectory
+      .appendingPathComponent("reticle-log-reader-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let directory = ServiceLogReader.directoryURL(for: .mlxLM, homeDirectory: home)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try "0123456789abcdef".write(
+      to: directory.appendingPathComponent("server.log"),
+      atomically: true,
+      encoding: .utf8
+    )
+    try "startup failed".write(
+      to: directory.appendingPathComponent("server.error.log"),
+      atomically: true,
+      encoding: .utf8
+    )
+
+    let snapshot = ServiceLogReader.read(
+      runtime: .mlxLM,
+      homeDirectory: home,
+      maximumBytesPerFile: 8
+    )
+
+    XCTAssertEqual(snapshot.directory, directory)
+    XCTAssertTrue(snapshot.text.contains("earlier log content omitted"))
+    XCTAssertTrue(snapshot.text.contains("89abcdef"))
+    XCTAssertTrue(snapshot.text.contains("p failed"))
+  }
+
   func testSettingsSidebarStartsWithGeneralAndSeparatesWorkflows() {
     XCTAssertEqual(SettingsSection.defaultSection, .general)
     XCTAssertEqual(
       SettingsSection.allCases,
-      [.general, .models, .customModel, .vscodeSetup]
+      [.general, .models, .customModel, .benchmark, .vscodeSetup, .logs]
     )
     XCTAssertEqual(
       SettingsSection.allCases.map(\.title),
-      ["General", "Models", "Custom Model", "VS Code Setup"]
+      ["General", "Models", "Custom Model", "Benchmark", "VS Code Setup", "Logs"]
     )
   }
 
@@ -57,7 +146,9 @@ final class ReticleMLXTests: XCTestCase {
 
   func testSuggestedCatalogCoversSpeedBalanceQualityAndLargeModels() {
     XCTAssertEqual(ModelPreset.suggested.count, 5)
-    XCTAssertEqual(ModelPreset.suggested.first, ModelPreset.qwenCoder1Point5B)
+    XCTAssertEqual(ModelPreset.suggested.first, ModelPreset.seedCoder)
+    XCTAssertTrue(ModelPreset.suggested.first?.isRecommended == true)
+    XCTAssertTrue(ModelPreset.suggested.dropFirst().allSatisfy { !$0.isRecommended })
     XCTAssertEqual(ModelPreset.seedCoder.qualityScore, 5)
     XCTAssertEqual(ModelPreset.qwenCoder1Point5B.speedScore, 5)
     XCTAssertEqual(ModelPreset.qwen35MTPLX.runtime, .mtplx)

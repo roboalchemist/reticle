@@ -2,6 +2,19 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.10.0
+
+- Rank recommended models first while preserving the catalog order of other
+  presets.
+- Keep the settings sidebar permanently visible, move launch-at-login into a
+  dedicated Startup card, and make Activity a draggable vertical split.
+- Add a Logs tab with bounded log tails, refresh, service doctor, copy, export,
+  and open-folder actions.
+- Add a Benchmark tab for real FIM TTFT, cold total, warm median, and completion
+  throughput measurements with copyable/exportable comparison results.
+- Prevent periodic status checks from overlapping or flashing back to
+  `Checking…` between unhealthy results.
+
 ## 0.9.0
 
 - Replace the single tall settings form with a resizable macOS sidebar window
