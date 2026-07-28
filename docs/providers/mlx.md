@@ -4,8 +4,8 @@ Reticle MLX is the native Apple Silicon companion for Reticle. The menu-bar app
 downloads, selects, starts, stops, diagnoses, and monitors local code-completion
 models. It deliberately uses two runtimes:
 
-- **MLX-LM** is the general loader for Qwen2.5-Coder, Seed-Coder, Codestral, and
-  compatible custom MLX models.
+- **MLX-LM** is the general loader for Qwen2.5-Coder, Seed-Coder, Zeta,
+  Codestral, and compatible custom MLX models.
 - **MTPLX** is the optimized speculative runtime for the verified Qwen3.5 9B
   native-MTP checkpoint.
 
@@ -82,20 +82,32 @@ service that remains in **Starting or unhealthy**.
 
 ## Supported model cards
 
-All five presets below were downloaded and exercised through their real managed
+All six presets below were downloaded and exercised through their real managed
 runtime on an Apple M3 Max. Each returned the suffix-only identifier required by
 Reticle's FIM doctor.
 
 | Preset                      | Runtime | Download | Memory floor | Best for                          |
 | --------------------------- | ------- | -------: | -----------: | --------------------------------- |
+| Seed-Coder 8B mixed 3/4-bit | MLX-LM  |   3.6 GB |        16 GB | Best tested completion quality    |
+| Zeta 7B 4-bit               | MLX-LM  |   4.3 GB |        16 GB | Next-edit-tuned local completion  |
 | Qwen2.5-Coder 1.5B Base     | MLX-LM  |   0.9 GB |         8 GB | Lowest latency and memory         |
 | Qwen2.5-Coder 3B Base       | MLX-LM  |   1.7 GB |        12 GB | Balanced everyday use             |
 | Qwen3.5 9B Optimized Speed  | MTPLX   |   8.7 GB |        16 GB | Speculative multi-line completion |
-| Seed-Coder 8B mixed 3/4-bit | MLX-LM  |   3.6 GB |        16 GB | Best tested completion quality    |
 | Codestral 22B 4-bit         | MLX-LM  |  12.5 GB |        32 GB | Large FIM-native model            |
 
 The Qwen presets intentionally use **Base** checkpoints. An Instruct/chat model
 is not a substitute for a FIM-trained model.
+
+Zeta is a Qwen2.5-Coder 7B fine-tune for Zed's region-rewrite edit-prediction
+protocol. Its tokenizer retains Qwen's native FIM controls, and the selected
+MLX conversion passed Reticle's suffix-sensitive Qwen PSM doctor. Reticle uses
+that compatibility path because VS Code's stable inline-completion API cannot
+safely present Zeta's arbitrary multi-location region rewrites as ghost text.
+On a 128 GB M3 Max, the 4-bit MLX conversion decoded at about 83 tokens/s and
+used about 4.8 GB peak memory across the 33-case public Zeta eval. The 8-bit
+conversion produced the same output in 26/33 cases and the same 15 exact
+references, but decoded at about 46 tokens/s and used about 8.5 GB. That
+latency/memory tradeoff is why the app selects 4-bit.
 
 Codestral's community MLX conversion contains correct weights but an old
 Transformers tokenizer that does not expose its FIM control IDs. Reticle creates

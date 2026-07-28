@@ -200,3 +200,30 @@
 - Explored light, playful code-autocomplete marks after the original crosshair icon read as overly tactical.
 - Selected rounded code brackets around a completion sparkle, then rebuilt the concept as a deterministic three-color SVG rather than shipping generated raster artwork.
 - Rendered the registry PNG from the SVG and inspected downsampled 128 px, 32 px, and 16 px versions before packaging it into the extension.
+
+## 2026-07-28 — Zeta MLX quantization and preset
+
+- Verified that `zed-industries/zeta` is a Qwen2.5-Coder 7B edit-prediction
+  fine-tune with Apache-2.0 licensing and a native editable-region rewrite
+  protocol. Its tokenizer also retains the Qwen FIM control tokens.
+- Downloaded and exercised the MLX Community 4-bit, 6-bit, and 8-bit
+  group-size-64 conversions on an M3 Max. All three returned the exact
+  suffix-only identifier through Qwen PSM. The initial native-Zeta pass measured
+  roughly 85/61/48 tokens per second and 4.8/6.6/8.5 GB peak memory,
+  respectively.
+- Ran the 4-bit and 8-bit models across all 33 public Zeta eval cases. Both
+  produced 15 exact references and identical output on 26 cases. The 8-bit
+  conversion won four pairwise similarity comparisons versus three for 4-bit,
+  but decoded at about 46 tokens/s rather than 83 tokens/s. Selected 4-bit for
+  the interactive editor latency and memory tradeoff.
+- Added Zeta as model option number two, behind the recommended Seed preset.
+  Reticle uses its validated Qwen FIM compatibility path for safe cursor-local
+  multi-line ghost text. Full Zeta region rewriting remains separate because
+  stable VS Code inline completion ranges cannot safely represent arbitrary
+  multi-location edits.
+- Live provider testing exposed that MLX-LM accepted but did not enforce the
+  request's Qwen stop strings. Zeta generated the correct suffix-dependent
+  identifier and then repeated new assignments. Added both a suffix-boundary
+  request stop and client-side stream/sanitizer guard, preserving multiline
+  completion when the suffix begins on a later line. The single-line and
+  bounded multiline live integration cases then passed.

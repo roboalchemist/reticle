@@ -2,6 +2,19 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.11.0
+
+- Add Zeta 7B as the second model preset, using the native MLX-LM backend and
+  the measured 4-bit Apple Silicon conversion.
+- Validate Zeta's preserved Qwen FIM path and document why Reticle uses it
+  instead of applying arbitrary multi-location region rewrites through VS
+  Code's stable ghost-text API.
+- Stop Qwen output at the existing suffix on the client as well as in the
+  request, preventing repetition when a completion server ignores stop
+  sequences.
+- Compare 4-bit, 6-bit, and 8-bit MLX conversions on an M3 Max and document the
+  full 33-case 4-bit versus 8-bit quality/latency tradeoff.
+
 ## 0.10.0
 
 - Rank recommended models first while preserving the catalog order of other

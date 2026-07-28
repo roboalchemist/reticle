@@ -144,8 +144,16 @@ final class ReticleMLXTests: XCTestCase {
     XCTAssertFalse(ModelPreset.qwenCoder3B.model.contains("Instruct"))
   }
 
+  func testZetaIsSecondAndUsesValidatedMLXQuant() {
+    XCTAssertEqual(ModelPreset.suggested.dropFirst().first, ModelPreset.zeta7B)
+    XCTAssertEqual(ModelPreset.zeta7B.model, "mlx-community/zed-industries-zeta-4bit")
+    XCTAssertEqual(ModelPreset.zeta7B.fimFormat, "qwen")
+    XCTAssertEqual(ModelPreset.zeta7B.runtime, .mlxLM)
+    XCTAssertEqual(ModelPreset.zeta7B.minimumMemoryGB, 16)
+  }
+
   func testSuggestedCatalogCoversSpeedBalanceQualityAndLargeModels() {
-    XCTAssertEqual(ModelPreset.suggested.count, 5)
+    XCTAssertEqual(ModelPreset.suggested.count, 6)
     XCTAssertEqual(ModelPreset.suggested.first, ModelPreset.seedCoder)
     XCTAssertTrue(ModelPreset.suggested.first?.isRecommended == true)
     XCTAssertTrue(ModelPreset.suggested.dropFirst().allSatisfy { !$0.isRecommended })

@@ -34,6 +34,30 @@ describe("inline completion sanitizer", () => {
     expect(sanitizeCompletion(" a + b;", { ...context, suffix: ";\n}" })).toBe("a + b");
   });
 
+  it("stops at the existing suffix even when a server ignores stop sequences", () => {
+    const context = {
+      languageId: "typescript",
+      prefix: "const value = user.",
+      suffix: ";\nreturn value;",
+    };
+    const repeated =
+      "suffixOnlyIdentifier;\nconst value2 = user.suffixOnlyIdentifier;\nconst value3 =";
+
+    expect(reachedInlineBoundary(repeated, context)).toBe(true);
+    expect(sanitizeCompletion(repeated, context)).toBe("suffixOnlyIdentifier");
+  });
+
+  it("does not mistake a nested closing delimiter for a one-character suffix", () => {
+    expect(
+      sanitizeCompletion("if (ready) {\n  run();\n}\n}", {
+        languageId: "typescript",
+        maxLines: 8,
+        prefix: "function start() {\n  ",
+        suffix: "}\n",
+      }),
+    ).toBe("if (ready) {\n  run();\n}\n");
+  });
+
   it("preserves indentation, normalizes newlines, and removes multi-line suffix overlap", () => {
     const context = {
       languageId: "typescript",

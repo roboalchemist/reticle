@@ -48,6 +48,25 @@ struct ModelPreset: Identifiable, Hashable {
     badge: "Recommended"
   )
 
+  static let zeta7B = ModelPreset(
+    id: "zeta-7b",
+    name: "Zeta 7B",
+    tagline: "Next-edit tuned",
+    model: "mlx-community/zed-industries-zeta-4bit",
+    requestModel: "default_model",
+    fimFormat: "qwen",
+    runtime: .mlxLM,
+    defaultPort: 8001,
+    summary:
+      "Zed’s Qwen2.5-Coder 7B edit-prediction fine-tune. Reticle uses its validated Qwen FIM compatibility for safe cursor-local, multi-line suggestions.",
+    downloadSizeBytes: 4_295_768_341,
+    minimumMemoryGB: 16,
+    qualityScore: 4,
+    speedScore: 3,
+    memoryScore: 3,
+    badge: "Edit prediction"
+  )
+
   static let qwenCoder1Point5B = ModelPreset(
     id: "qwen-coder-1.5b",
     name: "Qwen2.5-Coder 1.5B",
@@ -143,6 +162,7 @@ struct ModelPreset: Identifiable, Hashable {
   )
 
   private static let catalog = [
+    zeta7B,
     qwenCoder1Point5B,
     qwenCoder3B,
     qwen35MTPLX,
