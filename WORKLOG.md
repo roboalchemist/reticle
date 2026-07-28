@@ -1,5 +1,16 @@
 # Worklog
 
+## 2026-07-28 — Zeta-aware service diagnostics
+
+- MLX-LM 0.31.1 accepts request stop strings but does not enforce them for the
+  tested Zeta 4-bit model, so the raw probe can continue after correctly
+  generating `suffixOnlyIdentifier`.
+- Reticle's extension already bounds that output against the existing suffix.
+  Make both packaged doctors validate the same leading identifier boundary
+  instead of requiring the entire raw generation to equal one token.
+- Reject identifier lookalikes such as `suffixOnlyIdentifierExtra` so the
+  relaxed diagnostic still proves the model used the suffix declaration.
+
 ## 2026-07-28 — Diagnostics and model benchmarking
 
 - Keep the settings navigation permanently visible with a fixed sidebar rather

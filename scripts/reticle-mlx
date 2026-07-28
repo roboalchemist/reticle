@@ -446,8 +446,10 @@ run_vscode_doctor() {
 
   if fim_response="$(curl -fsS --max-time 180 "${base_url}/v1/completions" \
     -H 'Content-Type: application/json' -d "$(make_fim_payload)")" &&
-    [ "$(printf '%s' "${fim_response}" | json_value choices.0.text || true)" \
-      = "suffixOnlyIdentifier" ]; then
+    completion="$(
+      printf '%s' "${fim_response}" | json_value choices.0.text || true
+    )" &&
+    completion_starts_with_probe_identifier "${completion}"; then
     printf 'PASS extension-shaped FIM probe: suffixOnlyIdentifier\n'
   else
     printf 'FAIL extension-shaped FIM probe: expected suffixOnlyIdentifier\n' >&2
@@ -697,6 +699,17 @@ json_value() {
   plutil -extract "${1}" raw -o - - 2>/dev/null
 }
 
+completion_starts_with_probe_identifier() {
+  case "${1}" in
+    suffixOnlyIdentifier | suffixOnlyIdentifier[!A-Za-z0-9_]*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 run_doctor() {
   doctor_ok=1
   printf 'Reticle MLX doctor\n'
@@ -768,7 +781,7 @@ run_doctor() {
   if fim_response="$(curl -fsS --max-time 180 "${base_url}/v1/completions" \
     -H 'Content-Type: application/json' -d "$(make_fim_payload)")"; then
     completion="$(printf '%s' "${fim_response}" | json_value choices.0.text || true)"
-    if [ "${completion}" = "suffixOnlyIdentifier" ]; then
+    if completion_starts_with_probe_identifier "${completion}"; then
       printf 'PASS FIM probe: suffixOnlyIdentifier\n'
     else
       printf 'FAIL FIM probe: expected suffixOnlyIdentifier, got %s\n' \
