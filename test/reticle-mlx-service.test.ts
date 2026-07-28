@@ -68,6 +68,7 @@ describe("Reticle MLX service helper", () => {
     const venvBin = join(home, ".reticle", "mlx", "venv", "bin");
     const launchAgents = join(home, "Library", "LaunchAgents");
     const codeSettings = join(home, "Library", "Application Support", "Code", "User");
+    const completionPath = join(home, "completion.txt");
     mkdirSync(bin, { recursive: true });
     mkdirSync(venvBin, { recursive: true });
     mkdirSync(launchAgents, { recursive: true });
@@ -117,7 +118,7 @@ case "$2" in
   ProgramArguments.14) printf '%s\\n' INFO ;;
   EnvironmentVariables.RETICLE_MLX_FIM_FORMAT) printf '%s\\n' qwen ;;
   status) printf '%s\\n' ok ;;
-  choices.0.text) printf '%s\\n' suffixOnlyIdentifier ;;
+  choices.0.text) cat '${completionPath}' ;;
   *) exit 1 ;;
 esac
 `,
@@ -148,6 +149,7 @@ esac
       join(launchAgents, "io.github.roboalchemist.reticle-mlx.plist"),
       "<plist><dict><key>ProgramArguments</key><array/></dict></plist>\n",
     );
+    writeFileSync(completionPath, "suffixOnlyIdentifier;\\n  const value2\\n");
     writeFileSync(
       join(codeSettings, "settings.json"),
       `{
@@ -216,6 +218,17 @@ esac
       "PASS extension-shaped FIM probe: suffixOnlyIdentifier",
     );
     expect(extensionDoctor.stdout).toContain("Reticle VS Code doctor: pass");
+
+    writeFileSync(completionPath, "suffixOnlyIdentifierExtra\\n");
+    const lookalikeDoctor = spawnSync(join(process.cwd(), "scripts", "reticle-mlx"), ["doctor"], {
+      encoding: "utf8",
+      env,
+    });
+    expect(lookalikeDoctor.status).toBe(1);
+    expect(lookalikeDoctor.stderr).toContain(
+      "FAIL FIM probe: expected suffixOnlyIdentifier, got suffixOnlyIdentifierExtra",
+    );
+    writeFileSync(completionPath, "suffixOnlyIdentifier\\n");
 
     writeExecutable(
       join(bin, "curl"),

@@ -2,6 +2,12 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.11.1
+
+- Accept a suffix-dependent identifier followed by additional generated text
+  in the MLX service and VS Code doctors, matching the extension's safe suffix
+  boundary handling while still rejecting lookalike identifiers.
+
 ## 0.11.0
 
 - Add Zeta 7B as the second model preset, using the native MLX-LM backend and
