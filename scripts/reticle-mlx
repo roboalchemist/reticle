@@ -375,7 +375,7 @@ check_vscode_settings() {
     return 1
   fi
   python_path="$(resolve_python)"
-  "${python_path}" - "${settings_path}" "${base_url}/v1" "${model}" "${fim_format}" <<'PY'
+  "${python_path}" - "${settings_path}" "${base_url}/v1" "${api_model}" "${fim_format}" <<'PY'
 import json
 import re
 import sys
