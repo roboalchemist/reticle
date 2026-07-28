@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 enum ServiceState: Equatable {
   case checking
@@ -39,10 +40,14 @@ final class ServiceController: ObservableObject {
   @Published private(set) var installedFormat = ServiceConfiguration.defaults.fimFormat
   @Published private(set) var installedRuntime = ServiceConfiguration.defaults.runtime
   @Published private(set) var endpoint = "http://127.0.0.1:8001/v1"
+  @Published private(set) var logOutput = ""
+  @Published private(set) var logDirectory = ""
+  @Published private(set) var isLoadingLogs = false
 
   let downloads: ModelDownloadController
   private let mlxRunner: CommandRunner?
   private let mtplxRunner: CommandRunner?
+  private var isRefreshing = false
 
   init(
     mlxRunner: CommandRunner? = CommandRunner.resolveExecutable().map(CommandRunner.init),
@@ -55,7 +60,9 @@ final class ServiceController: ObservableObject {
   }
 
   func refresh() async {
-    guard !isBusy else { return }
+    guard !isBusy, !isRefreshing else { return }
+    isRefreshing = true
+    defer { isRefreshing = false }
     let runtime = ServiceConfiguration.load().runtime
     let runner = runner(for: runtime)
     guard let runner else {
@@ -64,7 +71,6 @@ final class ServiceController: ObservableObject {
       return
     }
 
-    state = .checking
     let result = await runner.run("status")
     parseInstalledConfiguration(from: result.output)
     output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -181,6 +187,52 @@ final class ServiceController: ObservableObject {
     )
     try? FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
     NSWorkspace.shared.open(logs)
+  }
+
+  func refreshLogs() async {
+    guard !isLoadingLogs else { return }
+    isLoadingLogs = true
+    let runtime = ServiceConfiguration.load().runtime
+    let serviceOutput = output
+    let snapshot = await Task.detached(priority: .userInitiated) {
+      ServiceLogReader.read(runtime: runtime)
+    }.value
+    logDirectory = snapshot.directory.path
+    logOutput =
+      """
+      Reticle MLX diagnostics
+      Runtime: \(runtime.displayName)
+      Directory: \(snapshot.directory.path)
+
+      ===== latest service status =====
+      \(serviceOutput.isEmpty ? "(no service status output)" : serviceOutput)
+
+      \(snapshot.text)
+      """
+    isLoadingLogs = false
+  }
+
+  func copyLogs() {
+    guard !logOutput.isEmpty else { return }
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(logOutput, forType: .string)
+    output = "Copied Reticle MLX logs to the clipboard."
+  }
+
+  func exportLogs() {
+    guard !logOutput.isEmpty else { return }
+    let runtime = ServiceConfiguration.load().runtime
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [.plainText]
+    panel.canCreateDirectories = true
+    panel.nameFieldStringValue = "reticle-mlx-\(runtime.rawValue)-logs.txt"
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      try logOutput.write(to: url, atomically: true, encoding: .utf8)
+      output = "Exported Reticle MLX logs to \(url.path)."
+    } catch {
+      output = "Could not export logs: \(error.localizedDescription)"
+    }
   }
 
   private func perform(

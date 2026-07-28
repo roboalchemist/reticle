@@ -6,7 +6,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
   case general
   case models
   case customModel
+  case benchmark
   case vscodeSetup
+  case logs
 
   static let defaultSection = SettingsSection.general
 
@@ -17,7 +19,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .general: "General"
     case .models: "Models"
     case .customModel: "Custom Model"
+    case .benchmark: "Benchmark"
     case .vscodeSetup: "VS Code Setup"
+    case .logs: "Logs"
     }
   }
 
@@ -26,7 +30,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case .general: "gearshape"
     case .models: "shippingbox"
     case .customModel: "slider.horizontal.3"
+    case .benchmark: "gauge.with.dots.needle.50percent"
     case .vscodeSetup: "chevron.left.forwardslash.chevron.right"
+    case .logs: "doc.text.magnifyingglass"
     }
   }
 }
@@ -34,9 +40,11 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 struct SettingsView: View {
   @ObservedObject var controller: ServiceController
   @ObservedObject private var downloads: ModelDownloadController
+  @StateObject private var benchmarks: BenchmarkController
 
   @State private var selectedSection = SettingsSection.defaultSection
   @State private var selectedPresetID = ModelPreset.seedCoder.id
+  @State private var benchmarkPresetID = ModelPreset.seedCoder.id
   @State private var model = ServiceConfiguration.defaults.model
   @State private var requestModel = ServiceConfiguration.defaults.requestModel
   @State private var fimFormat = ServiceConfiguration.defaults.fimFormat
@@ -50,6 +58,7 @@ struct SettingsView: View {
   init(controller: ServiceController) {
     self.controller = controller
     _downloads = ObservedObject(wrappedValue: controller.downloads)
+    _benchmarks = StateObject(wrappedValue: BenchmarkController())
   }
 
   private var configuration: ServiceConfiguration {
@@ -65,12 +74,11 @@ struct SettingsView: View {
   }
 
   var body: some View {
-    NavigationSplitView {
+    HStack(spacing: 0) {
       sidebar
-    } detail: {
+      Divider()
       detail
     }
-    .navigationSplitViewStyle(.balanced)
     .frame(
       minWidth: 720,
       idealWidth: 980,
@@ -117,14 +125,17 @@ struct SettingsView: View {
   }
 
   private var detail: some View {
-    VStack(spacing: 0) {
+    VSplitView {
       selectedPage
-      Divider()
+        .frame(minHeight: 260, maxHeight: .infinity)
+        .layoutPriority(1)
       activitySection
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+        .frame(minHeight: 92, idealHeight: 120, maxHeight: .infinity)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .accessibilityIdentifier("settings.activity-split")
   }
 
   @ViewBuilder
@@ -136,8 +147,12 @@ struct SettingsView: View {
       modelsPage
     case .customModel:
       customModelPage
+    case .benchmark:
+      benchmarkPage
     case .vscodeSetup:
       vscodeSetupPage
+    case .logs:
+      logsPage
     }
   }
 
@@ -164,6 +179,7 @@ struct SettingsView: View {
         )
         currentModelSection
         runtimeSection
+        startupSection
         serviceSection
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -338,6 +354,119 @@ struct SettingsView: View {
     .accessibilityIdentifier("settings.vscode-setup")
   }
 
+  private var benchmarkPage: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 16) {
+        pageHeader(
+          "Benchmark",
+          subtitle: "Compare real fill-in-the-middle latency and completion throughput"
+        )
+
+        GroupBox("Run Benchmark") {
+          VStack(alignment: .leading, spacing: 10) {
+            Picker("Model", selection: $benchmarkPresetID) {
+              ForEach(ModelPreset.suggested) { preset in
+                Text(preset.name).tag(preset.id)
+              }
+            }
+
+            HStack(spacing: 9) {
+              Button("Start Model & Benchmark") {
+                Task { await runBenchmark() }
+              }
+              .buttonStyle(.borderedProminent)
+              .disabled(
+                benchmarks.isRunning || controller.isBusy || selectedBenchmarkPreset == nil
+                  || !downloads.isDownloadedPresetOrCustom(benchmarkPresetID)
+              )
+
+              Button("Copy Results") {
+                benchmarks.copyResults()
+              }
+              .disabled(benchmarks.results.isEmpty)
+
+              Button("Export TSV…") {
+                benchmarks.exportResults()
+              }
+              .disabled(benchmarks.results.isEmpty)
+
+              if benchmarks.isRunning {
+                ProgressView()
+                  .controlSize(.small)
+              }
+            }
+
+            Text(
+              "Starting a different model changes the active Reticle service. Cold is a new prompt-cache session; warm is the median of three repeated requests."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Text(benchmarks.status)
+              .font(.caption.monospaced())
+              .foregroundStyle(benchmarks.status.hasPrefix("Benchmark failed") ? .red : .secondary)
+              .textSelection(.enabled)
+          }
+          .padding(.top, 4)
+        }
+
+        GroupBox("Results") {
+          if benchmarks.results.isEmpty {
+            VStack(spacing: 8) {
+              Image(systemName: "gauge.with.dots.needle.50percent")
+                .font(.title)
+                .foregroundStyle(.secondary)
+              Text("No Benchmark Results")
+                .font(.headline)
+              Text("Choose a downloaded model and run the benchmark.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 150)
+          } else {
+            ScrollView(.horizontal) {
+              Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 9) {
+                GridRow {
+                  benchmarkHeader("Model")
+                  benchmarkHeader("Runtime")
+                  benchmarkHeader("TTFT")
+                  benchmarkHeader("Cold total")
+                  benchmarkHeader("Warm total")
+                  benchmarkHeader("Completion")
+                }
+                Divider()
+                  .gridCellUnsizedAxes(.horizontal)
+                ForEach(benchmarks.results) { result in
+                  GridRow {
+                    Text(result.modelName)
+                    Text(result.runtime)
+                    benchmarkValue(result.ttftMilliseconds, suffix: "ms")
+                    benchmarkValue(result.coldMilliseconds, suffix: "ms")
+                    benchmarkValue(result.warmMilliseconds, suffix: "ms")
+                    Text(
+                      "\(String(format: "%.1f", result.completionTokensPerSecond)) tok/s\(result.tokenRateIsEstimated ? "*" : "")"
+                    )
+                    .font(.system(.caption, design: .monospaced))
+                  }
+                }
+              }
+              .padding(.vertical, 6)
+            }
+          }
+
+          Text("* Token rate is estimated when the server does not report completion-token usage.")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .padding(.top, 6)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(20)
+    }
+    .scrollIndicators(.automatic)
+    .accessibilityIdentifier("settings.benchmark")
+  }
+
   private var runtimeSection: some View {
     GroupBox("Runtime") {
       HStack(alignment: .top, spacing: 16) {
@@ -362,9 +491,13 @@ struct SettingsView: View {
         )
       }
       .padding(.top, 4)
+    }
+  }
 
+  private var startupSection: some View {
+    GroupBox("Startup") {
       Toggle("Launch Reticle MLX at login", isOn: $launchAtLogin)
-        .padding(.top, 8)
+        .padding(.top, 4)
         .onChange(of: launchAtLogin) { enabled in
           updateLoginItem(enabled)
         }
@@ -375,6 +508,104 @@ struct SettingsView: View {
           .foregroundStyle(.red)
       }
     }
+  }
+
+  private var logsPage: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      pageHeader(
+        "Logs",
+        subtitle: "Inspect, copy, and export service diagnostics"
+      )
+
+      HStack(spacing: 9) {
+        Button("Refresh Logs") {
+          Task { await controller.refreshLogs() }
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(controller.isLoadingLogs)
+
+        Button("Run Service Doctor") {
+          Task { await controller.doctor() }
+        }
+        .disabled(controller.isBusy)
+
+        Button("Copy All") {
+          controller.copyLogs()
+        }
+        .disabled(controller.logOutput.isEmpty)
+
+        Button("Export…") {
+          controller.exportLogs()
+        }
+        .disabled(controller.logOutput.isEmpty)
+
+        Button("Open Folder") {
+          controller.openLogs()
+        }
+      }
+
+      HStack {
+        Label(controller.installedRuntime.displayName, systemImage: "server.rack")
+        Text(controller.logDirectory)
+          .font(.caption.monospaced())
+          .foregroundStyle(.secondary)
+          .textSelection(.enabled)
+        Spacer()
+        if controller.isLoadingLogs {
+          ProgressView()
+            .controlSize(.small)
+        }
+      }
+
+      ScrollView([.horizontal, .vertical]) {
+        Text(controller.logOutput.isEmpty ? "No logs loaded." : controller.logOutput)
+          .font(.system(.caption, design: .monospaced))
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .textSelection(.enabled)
+          .padding(10)
+      }
+      .background(
+        RoundedRectangle(cornerRadius: 7)
+          .fill(Color(nsColor: .textBackgroundColor))
+      )
+    }
+    .padding(20)
+    .accessibilityIdentifier("settings.logs")
+    .task(id: controller.installedRuntime) {
+      await controller.refreshLogs()
+    }
+  }
+
+  private var selectedBenchmarkPreset: ModelPreset? {
+    ModelPreset.suggested.first { $0.id == benchmarkPresetID }
+  }
+
+  private func runBenchmark() async {
+    guard let preset = selectedBenchmarkPreset else { return }
+    let benchmarkConfiguration = ServiceConfiguration(
+      model: preset.model,
+      requestModel: preset.requestModel,
+      fimFormat: preset.fimFormat,
+      runtime: preset.runtime,
+      port: preset.defaultPort,
+      promptCacheSize: Int(cacheSize) ?? ServiceConfiguration.defaults.promptCacheSize,
+      promptCacheBytes: (Int(cacheGigabytes) ?? 4) * 1_073_741_824
+    )
+    select(preset)
+    await controller.install(benchmarkConfiguration)
+    guard controller.state == .healthy else { return }
+    await benchmarks.run(configuration: benchmarkConfiguration, modelName: preset.name)
+  }
+
+  private func benchmarkHeader(_ title: String) -> some View {
+    Text(title)
+      .font(.caption.bold())
+      .foregroundStyle(.secondary)
+  }
+
+  private func benchmarkValue(_ value: Double, suffix: String) -> some View {
+    Text("\(String(format: "%.1f", value)) \(suffix)")
+      .font(.system(.caption, design: .monospaced))
   }
 
   private var serviceSection: some View {
@@ -408,7 +639,7 @@ struct SettingsView: View {
           .textSelection(.enabled)
           .padding(.vertical, 4)
       }
-      .frame(minHeight: 62, maxHeight: 88)
+      .frame(maxHeight: .infinity)
     }
   }
 

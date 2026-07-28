@@ -142,8 +142,29 @@ struct ModelPreset: Identifiable, Hashable {
     badge: nil
   )
 
-  static let suggested = [qwenCoder1Point5B, qwenCoder3B, qwen35MTPLX, seedCoder, codestral22B]
+  private static let catalog = [
+    qwenCoder1Point5B,
+    qwenCoder3B,
+    qwen35MTPLX,
+    seedCoder,
+    codestral22B,
+  ]
+
+  static let suggested =
+    catalog.enumerated()
+    .sorted { left, right in
+      if left.element.isRecommended != right.element.isRecommended {
+        return left.element.isRecommended
+      }
+      return left.offset < right.offset
+    }
+    .map(\.element)
+
   static let all = suggested + [custom]
+
+  var isRecommended: Bool {
+    badge == "Recommended"
+  }
 
   var formattedDownloadSize: String {
     ByteCountFormatter.string(fromByteCount: downloadSizeBytes, countStyle: .file)

@@ -1,5 +1,29 @@
 # Worklog
 
+## 2026-07-28 — Diagnostics and model benchmarking
+
+- Keep the settings navigation permanently visible with a fixed sidebar rather
+  than relying on `NavigationSplitView`'s automatic hide/show toolbar item.
+- Use a native vertical split for the shared Activity pane, giving every tab a
+  draggable divider while retaining a useful minimum height for both sides.
+- Rank the explicit `Recommended` preset first with a stable secondary catalog
+  order. Launch at Login now has its own Startup card instead of being mixed
+  into runtime cache controls.
+- Read only the last 256 KiB of each active-runtime log so multi-gigabyte logs
+  cannot freeze the settings UI. The Logs tab combines those tails with the
+  latest service status and provides copy, export, doctor, and folder actions.
+- Added a streaming benchmark client using the same FIM transport and
+  `x-reticle-autocomplete-session-id` header as the extension. A unique session
+  measures the cold prompt path, three repeated requests measure the warm
+  median, and SSE arrival time provides real TTFT.
+- Some servers omit completion-token usage in streamed responses. Preserve
+  reported counts when present and visibly mark a character-derived token
+  estimate otherwise.
+- Periodic status polling previously set `Checking…` before every five-second
+  probe and allowed probes to overlap. Preserve the last resolved state during
+  polling and serialize refreshes so an unhealthy service no longer flashes
+  between two labels.
+
 ## 2026-07-27 — Resizable sidebar settings
 
 - Split the increasingly tall settings form into four focused sidebar
