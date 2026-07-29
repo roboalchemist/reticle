@@ -2,6 +2,16 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.12.0
+
+- Keep Download/Downloaded and Select/Selected controls anchored in the
+  upper-right of every model card.
+- Put model size, memory floor, and serving engine inline with the subtitle
+  metadata using compact separators.
+- Make Select activate the downloaded model through the managed service,
+  display Loading while it starts, and update selection only after the model
+  reports healthy.
+
 ## 0.11.1
 
 - Accept a suffix-dependent identifier followed by additional generated text

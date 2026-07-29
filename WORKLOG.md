@@ -11,6 +11,9 @@
   only downloaded models can be selected, the card reports Loading while the
   service is installed and started, and selection changes only after the new
   model reports healthy.
+- Exercised the production service transition from Zeta to Seed-Coder and back
+  to Zeta, with health and suffix-dependent FIM doctors passing for both
+  configurations, before preparing the signed 0.12.0 release.
 
 ## 2026-07-28 — Zeta-aware service diagnostics
 
