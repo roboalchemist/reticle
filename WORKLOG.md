@@ -1,5 +1,17 @@
 # Worklog
 
+## 2026-07-29 — Distinct starting and unhealthy states
+
+- Replaced the ambiguous `Starting or unhealthy` service state with separate
+  `Starting` and `Unhealthy` states in the menu bar and settings.
+- Treat a loaded, explicitly non-running LaunchAgent as unhealthy immediately.
+  A running process receives a 90-second cold-model startup grace period before
+  an unavailable health endpoint becomes unhealthy; a new PID restarts that
+  bounded grace period.
+- Show start/install/restart actions as starting while their helper command is
+  active, and expose the same launchd process details for the MTPLX backend so
+  both engines use identical state resolution.
+
 ## 2026-07-29 — Model-card activation and compact metadata
 
 - Kept Download/Downloaded and Select/Selected controls anchored in the

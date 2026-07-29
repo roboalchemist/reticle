@@ -3,6 +3,125 @@ import XCTest
 @testable import ReticleMLX
 
 final class ReticleMLXTests: XCTestCase {
+  func testServiceStateSeparatesStartingFromUnhealthy() {
+    let startedAt = Date(timeIntervalSince1970: 1_000)
+    var resolver = ServiceStateResolver(startupGraceInterval: 90)
+    let starting = CommandResult(
+      exitCode: 1,
+      output:
+        """
+        launchd: loaded (gui/501/io.github.roboalchemist.reticle-mlx)
+        state = running
+        pid = 123
+        health: unavailable
+        """
+    )
+
+    XCTAssertEqual(
+      resolver.resolve(
+        result: starting,
+        serviceDefinitionExists: true,
+        now: startedAt
+      ),
+      .starting
+    )
+    XCTAssertEqual(ServiceState.starting.title, "Starting")
+    XCTAssertEqual(
+      resolver.resolve(
+        result: starting,
+        serviceDefinitionExists: true,
+        now: startedAt.addingTimeInterval(89)
+      ),
+      .starting
+    )
+    XCTAssertEqual(
+      resolver.resolve(
+        result: starting,
+        serviceDefinitionExists: true,
+        now: startedAt.addingTimeInterval(90)
+      ),
+      .unhealthy
+    )
+    XCTAssertEqual(ServiceState.unhealthy.title, "Unhealthy")
+  }
+
+  func testServiceStateReportsNonRunningLaunchAgentAsUnhealthyImmediately() {
+    var resolver = ServiceStateResolver()
+    let notRunning = CommandResult(
+      exitCode: 1,
+      output:
+        """
+        launchd: loaded (gui/501/io.github.roboalchemist.reticle-mlx)
+        state = not running
+        last exit code = (never exited)
+        health: unavailable
+        """
+    )
+
+    XCTAssertEqual(
+      resolver.resolve(
+        result: notRunning,
+        serviceDefinitionExists: true
+      ),
+      .unhealthy
+    )
+  }
+
+  func testServiceStateResetsStartupGraceForANewProcess() {
+    let startedAt = Date(timeIntervalSince1970: 1_000)
+    var resolver = ServiceStateResolver(startupGraceInterval: 10)
+    let firstProcess = CommandResult(
+      exitCode: 1,
+      output: "launchd: loaded\nstate = running\npid = 123\nhealth: unavailable\n"
+    )
+    let nextProcess = CommandResult(
+      exitCode: 1,
+      output: "launchd: loaded\nstate = running\npid = 456\nhealth: unavailable\n"
+    )
+
+    XCTAssertEqual(
+      resolver.resolve(
+        result: firstProcess,
+        serviceDefinitionExists: true,
+        now: startedAt
+      ),
+      .starting
+    )
+    XCTAssertEqual(
+      resolver.resolve(
+        result: firstProcess,
+        serviceDefinitionExists: true,
+        now: startedAt.addingTimeInterval(10)
+      ),
+      .unhealthy
+    )
+    XCTAssertEqual(
+      resolver.resolve(
+        result: nextProcess,
+        serviceDefinitionExists: true,
+        now: startedAt.addingTimeInterval(11)
+      ),
+      .starting
+    )
+  }
+
+  func testServiceStatePreservesStoppedAndNotInstalledDistinction() {
+    var resolver = ServiceStateResolver()
+    let notLoaded = CommandResult(
+      exitCode: 1,
+      output: "launchd: not loaded\nhealth: unavailable\n"
+    )
+
+    XCTAssertEqual(
+      resolver.resolve(result: notLoaded, serviceDefinitionExists: true),
+      .stopped
+    )
+    XCTAssertEqual(
+      resolver.resolve(result: notLoaded, serviceDefinitionExists: false),
+      .notInstalled
+    )
+  }
+
   func testBenchmarkRequestsUseTheSelectedFIMTransport() {
     let marker = "fixture"
 
