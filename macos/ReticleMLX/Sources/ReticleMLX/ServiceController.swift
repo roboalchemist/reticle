@@ -6,6 +6,7 @@ enum ServiceState: Equatable {
   case checking
   case healthy
   case starting
+  case unhealthy
   case stopped
   case notInstalled
   case failed
@@ -14,7 +15,8 @@ enum ServiceState: Equatable {
     switch self {
     case .checking: "Checking…"
     case .healthy: "Healthy"
-    case .starting: "Starting or unhealthy"
+    case .starting: "Starting"
+    case .unhealthy: "Unhealthy"
     case .stopped: "Stopped"
     case .notInstalled: "Not installed"
     case .failed: "Action failed"
@@ -26,8 +28,72 @@ enum ServiceState: Equatable {
     case .healthy: "checkmark.circle.fill"
     case .checking, .starting: "circle.dotted"
     case .stopped, .notInstalled: "circle"
+    case .unhealthy: "exclamationmark.triangle.fill"
     case .failed: "exclamationmark.circle"
     }
+  }
+}
+
+struct ServiceStateResolver {
+  static let defaultStartupGraceInterval: TimeInterval = 90
+
+  private let startupGraceInterval: TimeInterval
+  private var observedProcess: String?
+  private var observedAt: Date?
+
+  init(startupGraceInterval: TimeInterval = Self.defaultStartupGraceInterval) {
+    self.startupGraceInterval = startupGraceInterval
+  }
+
+  mutating func resolve(
+    result: CommandResult,
+    serviceDefinitionExists: Bool,
+    now: Date = Date()
+  ) -> ServiceState {
+    if result.succeeded {
+      resetStartupObservation()
+      return .healthy
+    }
+
+    let output = result.output
+    if output.contains("launchd: loaded") {
+      let launchdState = value(for: "state", in: output)
+      if let launchdState, launchdState != "running" {
+        resetStartupObservation()
+        return .unhealthy
+      }
+
+      let process = value(for: "pid", in: output) ?? launchdState ?? "loaded"
+      if observedProcess != process {
+        observedProcess = process
+        observedAt = now
+      } else if observedAt == nil {
+        observedAt = now
+      }
+
+      guard let observedAt else { return .starting }
+      return now.timeIntervalSince(observedAt) < startupGraceInterval
+        ? .starting : .unhealthy
+    }
+
+    resetStartupObservation()
+    if output.contains("launchd: not loaded"), serviceDefinitionExists {
+      return .stopped
+    }
+    return .notInstalled
+  }
+
+  mutating func resetStartupObservation() {
+    observedProcess = nil
+    observedAt = nil
+  }
+
+  private func value(for key: String, in output: String) -> String? {
+    let prefix = "\(key) = "
+    return output.split(whereSeparator: \.isNewline)
+      .map { $0.trimmingCharacters(in: .whitespaces) }
+      .first { $0.hasPrefix(prefix) }
+      .map { String($0.dropFirst(prefix.count)) }
   }
 }
 
@@ -48,6 +114,7 @@ final class ServiceController: ObservableObject {
   private let mlxRunner: CommandRunner?
   private let mtplxRunner: CommandRunner?
   private var isRefreshing = false
+  private var stateResolver = ServiceStateResolver()
 
   init(
     mlxRunner: CommandRunner? = CommandRunner.resolveExecutable().map(CommandRunner.init),
@@ -74,25 +141,18 @@ final class ServiceController: ObservableObject {
     let result = await runner.run("status")
     parseInstalledConfiguration(from: result.output)
     output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
-
-    if result.succeeded {
-      state = .healthy
-    } else if result.output.contains("launchd: loaded") {
-      state = .starting
-    } else if result.output.contains("launchd: not loaded"),
-      FileManager.default.fileExists(
-        atPath: NSString(
-          string:
-            runtime == .mtplx
-            ? "~/Library/LaunchAgents/io.github.roboalchemist.reticle.mtplx.plist"
-            : "~/Library/LaunchAgents/io.github.roboalchemist.reticle-mlx.plist"
-        ).expandingTildeInPath
-      )
-    {
-      state = .stopped
-    } else {
-      state = .notInstalled
-    }
+    let serviceDefinitionExists = FileManager.default.fileExists(
+      atPath: NSString(
+        string:
+          runtime == .mtplx
+          ? "~/Library/LaunchAgents/io.github.roboalchemist.reticle.mtplx.plist"
+          : "~/Library/LaunchAgents/io.github.roboalchemist.reticle-mlx.plist"
+      ).expandingTildeInPath
+    )
+    state = stateResolver.resolve(
+      result: result,
+      serviceDefinitionExists: serviceDefinitionExists
+    )
   }
 
   func install(_ configuration: ServiceConfiguration) async {
@@ -248,6 +308,10 @@ final class ServiceController: ObservableObject {
     }
 
     isBusy = true
+    if command == "install" || command == "start" || command == "restart" {
+      stateResolver.resetStartupObservation()
+      state = .starting
+    }
     output = "\(command.capitalized) in progress…"
     let result = await runner.run(command, environment: environment)
     output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)

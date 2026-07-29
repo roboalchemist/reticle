@@ -55,6 +55,46 @@ describe("MTPLX service helper", () => {
     expect(invalidKv.stderr).toContain("must be off, q8, or q4");
   });
 
+  it("reports launchd process details when health is unavailable", () => {
+    const home = mkdtempSync(join(tmpdir(), "reticle-mtplx-status-"));
+    temporaryDirectories.push(home);
+    const bin = join(home, "bin");
+    const launchAgents = join(home, "Library", "LaunchAgents");
+    mkdirSync(bin, { recursive: true });
+    mkdirSync(launchAgents, { recursive: true });
+    writeFileSync(
+      join(launchAgents, "io.github.roboalchemist.reticle.mtplx.plist"),
+      "<plist><dict/></plist>\n",
+    );
+    writeExecutable(
+      join(bin, "launchctl"),
+      `#!/bin/sh
+printf '%s\\n' 'state = running'
+printf '%s\\n' 'pid = 123'
+printf '%s\\n' 'last exit code = (never exited)'
+`,
+    );
+    writeExecutable(join(bin, "curl"), "#!/bin/sh\nexit 22\n");
+    writeExecutable(join(bin, "plutil"), "#!/bin/sh\nexit 1\n");
+
+    const result = spawnSync(join(process.cwd(), "scripts", "mtplx-service"), ["status"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOME: home,
+        PATH: `${bin}:/usr/bin:/bin`,
+        MTPLX_MODEL: "example/model",
+      },
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("launchd: loaded");
+    expect(result.stdout).toContain("state = running");
+    expect(result.stdout).toContain("pid = 123");
+    expect(result.stdout).toContain("health: unavailable");
+  });
+
   it("diagnoses the installed custom service and verifies real FIM behavior", () => {
     const home = mkdtempSync(join(tmpdir(), "reticle-mtplx-home-"));
     temporaryDirectories.push(home);

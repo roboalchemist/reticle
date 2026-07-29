@@ -504,14 +504,24 @@ case "${command}" in
     warm_fim_path
     ;;
   status)
-    if service_loaded; then
-      printf 'launchd: loaded (%s)\n' "${service_target}"
-    else
-      printf 'launchd: not loaded (%s)\n' "${service_target}"
-    fi
+    status_ok=1
     printf 'endpoint: %s\nmodel: %s\nruntime: mtplx\nFIM format: qwen\n' \
       "${base_url}" "${model}"
-    curl -fsS --max-time 5 "${base_url}/health" | print_status_json
+    if service_loaded; then
+      printf 'launchd: loaded (%s)\n' "${service_target}"
+      launchctl print "${service_target}" 2>/dev/null |
+        awk '/^[[:space:]]*(state|pid|last exit code) =/ { sub(/^[[:space:]]*/, ""); print }'
+    else
+      printf 'launchd: not loaded (%s)\n' "${service_target}"
+      status_ok=0
+    fi
+    if health_response="$(curl -fsS --max-time 5 "${base_url}/health" 2>/dev/null)"; then
+      printf '%s\n' "${health_response}" | print_status_json
+    else
+      printf 'health: unavailable\n'
+      status_ok=0
+    fi
+    [ "${status_ok}" -eq 1 ]
     ;;
   health)
     curl -fsS --max-time 5 "${base_url}/health" | print_json

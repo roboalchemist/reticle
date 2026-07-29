@@ -167,7 +167,10 @@ struct SettingsView: View {
       }
       Spacer()
       Label(controller.state.title, systemImage: controller.state.symbolName)
-        .foregroundStyle(controller.state == .healthy ? .green : .secondary)
+        .foregroundStyle(
+          controller.state == .healthy ? Color.green
+            : controller.state == .unhealthy ? Color.orange : Color.secondary
+        )
     }
   }
 
