@@ -44,6 +44,7 @@ struct SettingsView: View {
 
   @State private var selectedSection = SettingsSection.defaultSection
   @State private var selectedPresetID = ModelPreset.seedCoder.id
+  @State private var loadingPresetID: String?
   @State private var benchmarkPresetID = ModelPreset.seedCoder.id
   @State private var model = ServiceConfiguration.defaults.model
   @State private var requestModel = ServiceConfiguration.defaults.requestModel
@@ -664,19 +665,50 @@ struct SettingsView: View {
     let selected = selectedPresetID == preset.id
     let downloaded = downloads.isDownloaded(preset)
     let active = downloads.active?.modelID == preset.id ? downloads.active : nil
+    let loading = loadingPresetID == preset.id
 
     return ModelCardView(
       preset: preset,
       selected: selected,
       downloaded: downloaded,
+      loading: loading,
       active: active,
       downloadDisabled: downloaded || downloads.isBusy || controller.isBusy,
       onDownload: { controller.download(preset) },
-      onSelect: { select(preset) },
+      selectionDisabled: !downloaded || downloads.isBusy || controller.isBusy
+        || loadingPresetID != nil,
+      onSelect: {
+        Task {
+          await activate(preset)
+        }
+      },
       onPause: { downloads.pause() },
       onResume: { downloads.resume() },
       onCancel: { downloads.cancel() },
       statusText: active.map(downloadStatus) ?? ""
+    )
+  }
+
+  private func activate(_ preset: ModelPreset) async {
+    guard downloads.isDownloaded(preset), loadingPresetID == nil else { return }
+    loadingPresetID = preset.id
+    defer { loadingPresetID = nil }
+
+    let target = configuration(for: preset)
+    await controller.install(target)
+    guard controller.state == .healthy else { return }
+    select(preset)
+  }
+
+  private func configuration(for preset: ModelPreset) -> ServiceConfiguration {
+    ServiceConfiguration(
+      model: preset.model,
+      requestModel: preset.requestModel,
+      fimFormat: preset.fimFormat,
+      runtime: preset.runtime,
+      port: preset.defaultPort,
+      promptCacheSize: Int(cacheSize) ?? ServiceConfiguration.defaults.promptCacheSize,
+      promptCacheBytes: (Int(cacheGigabytes) ?? 4) * 1_073_741_824
     )
   }
 
@@ -782,9 +814,11 @@ private struct ModelCardView: View {
   let preset: ModelPreset
   let selected: Bool
   let downloaded: Bool
+  let loading: Bool
   let active: ModelDownloadProgress?
   let downloadDisabled: Bool
   let onDownload: () -> Void
+  let selectionDisabled: Bool
   let onSelect: () -> Void
   let onPause: () -> Void
   let onResume: () -> Void
@@ -793,18 +827,21 @@ private struct ModelCardView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      ViewThatFits(in: .horizontal) {
-        HStack(alignment: .top, spacing: 12) {
-          description
-          Spacer(minLength: 12)
-          actions
-        }
-        VStack(alignment: .leading, spacing: 8) {
-          description
-          actions
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+      HStack(alignment: .top, spacing: 12) {
+        title
+          .layoutPriority(1)
+        Spacer(minLength: 8)
+        actions
+          .fixedSize(horizontal: true, vertical: false)
       }
+
+      metadata
+
+      Text(preset.summary)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(2)
+        .fixedSize(horizontal: false, vertical: true)
 
       HStack(spacing: 14) {
         ModelScore(label: "Quality", score: preset.qualityScore)
@@ -827,55 +864,47 @@ private struct ModelCardView: View {
     )
   }
 
-  private var description: some View {
-    VStack(alignment: .leading, spacing: 3) {
-      HStack(spacing: 7) {
-        Text(preset.name)
-          .font(.headline)
-        if let badge = preset.badge {
-          Text(badge)
-            .font(.caption2.bold())
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .foregroundStyle(selected ? Color.white : Color.indigo)
-            .background(Capsule().fill(selected ? Color.indigo : Color.indigo.opacity(0.12)))
-        }
-        if downloaded {
-          Label("Downloaded", systemImage: "checkmark.circle.fill")
-            .font(.caption)
-            .foregroundStyle(.green)
-        }
+  private var title: some View {
+    HStack(spacing: 7) {
+      Text(preset.name)
+        .font(.headline)
+      if let badge = preset.badge {
+        Text(badge)
+          .font(.caption2.bold())
+          .padding(.horizontal, 7)
+          .padding(.vertical, 2)
+          .foregroundStyle(selected ? Color.white : Color.indigo)
+          .background(Capsule().fill(selected ? Color.indigo : Color.indigo.opacity(0.12)))
       }
-      Text(preset.tagline)
-        .font(.subheadline.weight(.medium))
-      Text(preset.summary)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .lineLimit(2)
-        .fixedSize(horizontal: false, vertical: true)
     }
   }
 
+  private var metadata: some View {
+    Text(
+      "\(preset.tagline) · \(preset.formattedDownloadSize) · \(preset.minimumMemoryGB)+ GB memory · \(preset.runtime.displayName)"
+    )
+    .font(.subheadline.weight(.medium))
+    .foregroundStyle(.secondary)
+    .fixedSize(horizontal: false, vertical: true)
+  }
+
   private var actions: some View {
-    VStack(alignment: .trailing, spacing: 7) {
-      HStack(spacing: 8) {
-        Button(downloaded ? "Downloaded" : "Download", action: onDownload)
-          .disabled(downloadDisabled)
-        if selected {
-          Button("Selected") {}
-            .buttonStyle(.borderedProminent)
-            .disabled(true)
-        } else {
-          Button("Select", action: onSelect)
-            .buttonStyle(.bordered)
-        }
+    HStack(spacing: 8) {
+      Button(downloaded ? "Downloaded" : "Download", action: onDownload)
+        .disabled(downloadDisabled)
+      if loading {
+        Button("Loading…") {}
+          .buttonStyle(.borderedProminent)
+          .disabled(true)
+      } else if selected {
+        Button("Selected") {}
+          .buttonStyle(.borderedProminent)
+          .disabled(true)
+      } else {
+        Button("Select", action: onSelect)
+          .buttonStyle(.bordered)
+          .disabled(selectionDisabled)
       }
-      Text("\(preset.formattedDownloadSize) · \(preset.minimumMemoryGB)+ GB memory")
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-      Text(preset.runtime.displayName)
-        .font(.caption2.weight(.medium))
-        .foregroundStyle(preset.runtime == .mtplx ? Color.orange : Color.secondary)
     }
   }
 
