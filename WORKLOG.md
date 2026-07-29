@@ -1,5 +1,17 @@
 # Worklog
 
+## 2026-07-29 — Model-card activation and compact metadata
+
+- Kept Download/Downloaded and Select/Selected controls anchored in the
+  upper-right of every model card, including at narrower settings-window
+  widths.
+- Moved model size, memory floor, and serving engine into the subtitle metadata
+  line with compact separators.
+- Changed Select from a local UI preference into a managed service activation:
+  only downloaded models can be selected, the card reports Loading while the
+  service is installed and started, and selection changes only after the new
+  model reports healthy.
+
 ## 2026-07-28 — Zeta-aware service diagnostics
 
 - MLX-LM 0.31.1 accepts request stop strings but does not enforce them for the
