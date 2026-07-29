@@ -2,6 +2,15 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.12.1
+
+- Distinguish a cold model process that is still starting from a service that
+  is unhealthy, with a bounded 90-second startup grace period.
+- Report loaded but non-running LaunchAgents as unhealthy immediately and show
+  an orange warning state in the settings UI.
+- Expose launchd process details and unavailable health responses consistently
+  for both MLX-LM and MTPLX.
+
 ## 0.12.0
 
 - Keep Download/Downloaded and Select/Selected controls anchored in the
