@@ -2,6 +2,13 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.12.2
+
+- Explicitly demand-start MLX-LM and MTPLX after registering a new LaunchAgent,
+  preventing macOS 26 from leaving RunAtLoad as a deferred speculative spawn.
+- Add first-install regressions that require a successful
+  `bootstrap` → `kickstart` sequence for both serving engines.
+
 ## 0.12.1
 
 - Distinguish a cold model process that is still starting from a service that
