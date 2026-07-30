@@ -2,6 +2,18 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.13.0
+
+- Add a dedicated Reticle Activity Bar panel combining live endpoint health,
+  measured latency, common settings, active-editor completion, and bounded
+  extension logs.
+- Reuse the regular Reticle logo throughout the panel while preserving the
+  monochrome Activity Bar rail icon.
+- Put settings actions side by side, left-align checkbox controls, and expose
+  log copy, clear, and Output-channel actions.
+- Keep the fixed suffix-dependent completion probe as an explicitly named
+  compatibility diagnostic in the Command Palette.
+
 ## 0.12.2
 
 - Explicitly demand-start MLX-LM and MTPLX after registering a new LaunchAgent,
