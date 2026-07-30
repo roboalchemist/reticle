@@ -6,6 +6,8 @@ import { readSettings, SettingsError, validateSettings } from "./config/settings
 import { showProbeVerdict } from "./ui/warnings.js";
 import { StatusBarController } from "./ui/statusBar.js";
 import { ContextEngine } from "./context/ContextEngine.js";
+import { ReticleLogStore } from "./ui/logStore.js";
+import { ReticlePanelProvider } from "./ui/ReticlePanelProvider.js";
 
 export interface ReticleExtensionApi {
   provideInlineCompletionItems(
@@ -19,10 +21,16 @@ export interface ReticleExtensionApi {
 export function activate(context: vscode.ExtensionContext): ReticleExtensionApi {
   const selector: vscode.DocumentSelector = [{ scheme: "file" }, { scheme: "untitled" }];
   const output = vscode.window.createOutputChannel("Reticle", { log: true });
+  const logs = new ReticleLogStore(output);
   const configuration = vscode.workspace.getConfiguration("reticle");
   const status = new StatusBarController(
     configuration.get<boolean>("enableAutoTrigger", true) ? "enabled" : "disabled",
   );
+  const panel = new ReticlePanelProvider(context.extensionUri, logs);
+  const setStatus = (state: Parameters<StatusBarController["setState"]>[0], detail?: string) => {
+    status.setState(state, detail);
+    panel.setAutocompleteStatus(state, detail);
+  };
   const contextEngine = new ContextEngine({
     getOpenDocuments: () => vscode.workspace.textDocuments,
     getWorkspaceKey: (document) =>
@@ -31,15 +39,19 @@ export function activate(context: vscode.ExtensionContext): ReticleExtensionApi 
       vscode.workspace.getConfiguration("reticle").get<boolean>("multiFileContext", false),
   });
   const provider = new InlineProvider({
-    output,
-    onStatusChange: (state, detail) => status.setState(state, detail),
+    output: logs,
+    onStatusChange: setStatus,
     contextProvider: contextEngine,
   });
 
   context.subscriptions.push(
     output,
+    panel,
     status,
     provider,
+    vscode.window.registerWebviewViewProvider(ReticlePanelProvider.viewID, panel, {
+      webviewOptions: { retainContextWhenHidden: true },
+    }),
     vscode.languages.registerInlineCompletionItemProvider(selector, provider),
     vscode.workspace.onDidChangeTextDocument((event) => {
       provider.recordDocumentChange(event.document, event.contentChanges);
@@ -67,16 +79,20 @@ export function activate(context: vscode.ExtensionContext): ReticleExtensionApi 
         provider.cancelPendingRequest();
         await vscode.commands.executeCommand("editor.action.inlineSuggest.hide");
       }
-      status.setState(enabled ? "disabled" : "enabled");
+      setStatus(enabled ? "disabled" : "enabled");
     }),
     vscode.commands.registerCommand("reticle.triggerCompletion", async () => {
       await vscode.commands.executeCommand("editor.action.inlineSuggest.trigger");
+    }),
+    vscode.commands.registerCommand("reticle.openPanel", async () => {
+      await vscode.commands.executeCommand("workbench.view.extension.reticle");
     }),
     vscode.commands.registerCommand("reticle.testEndpoint", async () => {
       try {
         const settings = validateSettings(
           readSettings(vscode.workspace.getConfiguration("reticle")),
         );
+        logs.appendLine("[probe] Starting Command Palette completion test.");
         const result = await vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
@@ -92,6 +108,11 @@ export function activate(context: vscode.ExtensionContext): ReticleExtensionApi 
               cancellation.dispose();
             }
           },
+        );
+        logs.appendLine(
+          `[probe] ${
+            result.classification === "insertion" ? "passed" : `failed (${result.classification})`
+          } in ${result.elapsedMs} ms.`,
         );
         await showProbeVerdict(result);
       } catch (error) {
@@ -110,7 +131,7 @@ export function activate(context: vscode.ExtensionContext): ReticleExtensionApi 
           return;
         }
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          output.appendLine(`[probe] ${message}`);
+          logs.appendLine(`[probe] ${message}`);
           await vscode.window.showErrorMessage(`Reticle endpoint probe failed: ${message}`);
         }
       }
@@ -118,6 +139,7 @@ export function activate(context: vscode.ExtensionContext): ReticleExtensionApi 
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("reticle")) {
         provider.cancelPendingRequest();
+        panel.configurationChanged();
         if (
           event.affectsConfiguration("reticle.multiFileContext") &&
           !vscode.workspace.getConfiguration("reticle").get<boolean>("multiFileContext", false)
@@ -137,10 +159,11 @@ export function activate(context: vscode.ExtensionContext): ReticleExtensionApi 
         if (!enabled) {
           void vscode.commands.executeCommand("editor.action.inlineSuggest.hide");
         }
-        status.setState(enabled ? "enabled" : "disabled");
+        setStatus(enabled ? "enabled" : "disabled");
       }
     }),
   );
+  logs.appendLine("[extension] Reticle activated.");
 
   return {
     provideInlineCompletionItems: (document, position, inlineContext, token) =>

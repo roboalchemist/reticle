@@ -166,7 +166,16 @@ Run **Reticle: Test Autocomplete Endpoint**. See the [complete MTPLX guide](docs
    }
    ```
 
-4. Run **Reticle: Test Autocomplete Endpoint** from the Command Palette. Then type after `return ` in a source file. Reticle shows ghost text; press `Tab` to accept the entire single- or multi-line suggestion. Suggestions trigger automatically after a short typing pause. After acceptance, Reticle waits for your next edit before automatically suggesting again. To force one immediately, press `Option+\` on macOS or `Ctrl+Alt+Space` elsewhere.
+4. Open the Reticle target icon in the Activity Bar. The control panel shows
+   live endpoint health, editable core settings, an active-editor completion
+   trigger, and the extension log stream in one place. You can also run
+   **Reticle: Test Autocomplete Endpoint** from the Command Palette for the
+   fixed suffix-dependent compatibility diagnostic.
+5. Type after `return ` in a source file. Reticle shows ghost text; press `Tab`
+   to accept the entire single- or multi-line suggestion. Suggestions trigger
+   automatically after a short typing pause. After acceptance, Reticle waits
+   for your next edit before automatically suggesting again. To force one
+   immediately, press `Option+\` on macOS or `Ctrl+Alt+Space` elsewhere.
 
 Disable other inline-completion extensions while validating so their ghost text is not mistaken for Reticle's.
 

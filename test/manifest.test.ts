@@ -17,6 +17,10 @@ interface Manifest {
     configuration: {
       properties: Record<string, { default?: unknown; scope?: string }>;
     };
+    views: Record<string, Array<{ id: string; name: string; type?: string }>>;
+    viewsContainers: {
+      activitybar: Array<{ icon: string; id: string; title: string }>;
+    };
   };
 }
 
@@ -46,6 +50,27 @@ describe("extension manifest", () => {
       expect.objectContaining({
         command: "reticle.testEndpoint",
         title: "Test Autocomplete Endpoint",
+      }),
+    );
+  });
+
+  it("contributes a Reticle Activity Bar control panel", () => {
+    expect(manifest.activationEvents).toContain("onView:reticle.panel");
+    expect(manifest.activationEvents).toContain("onCommand:reticle.openPanel");
+    expect(manifest.contributes.viewsContainers.activitybar).toContainEqual({
+      icon: "media/activity-icon.svg",
+      id: "reticle",
+      title: "Reticle",
+    });
+    expect(manifest.contributes.views.reticle).toContainEqual({
+      id: "reticle.panel",
+      name: "Health, Settings & Logs",
+      type: "webview",
+    });
+    expect(manifest.contributes.commands).toContainEqual(
+      expect.objectContaining({
+        command: "reticle.openPanel",
+        title: "Open Control Panel",
       }),
     );
   });

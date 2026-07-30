@@ -27,6 +27,10 @@ interface ExtensionManifest {
     configuration?: {
       properties?: Record<string, { default?: unknown; scope?: string }>;
     };
+    views?: Record<string, Array<{ id?: string; name?: string; type?: string }>>;
+    viewsContainers?: {
+      activitybar?: Array<{ icon?: string; id?: string; title?: string }>;
+    };
   };
 }
 
@@ -127,6 +131,28 @@ suite("Reticle extension host", () => {
       (await vscode.commands.getCommands(true)).includes("reticle.triggerCompletion"),
       "the forced-completion command must be registered",
     );
+    assert.ok(
+      (await vscode.commands.getCommands(true)).includes("reticle.openPanel"),
+      "the control-panel command must be registered",
+    );
+    assert.ok(
+      manifest.contributes?.views?.reticle?.some(
+        (view) =>
+          view.id === "reticle.panel" &&
+          view.name === "Health, Settings & Logs" &&
+          view.type === "webview",
+      ),
+      "the Reticle Activity Bar webview must be contributed",
+    );
+    assert.ok(
+      manifest.contributes?.viewsContainers?.activitybar?.some(
+        (container) =>
+          container.id === "reticle" &&
+          container.title === "Reticle" &&
+          container.icon === "media/activity-icon.svg",
+      ),
+      "the Reticle Activity Bar container must be contributed",
+    );
 
     const registered = configuration();
     for (const id of expectedSettingIds) {
@@ -180,6 +206,12 @@ suite("Reticle extension host", () => {
       folder: false,
       effective: false,
     });
+  });
+
+  test("opens the Reticle Activity Bar control panel", async () => {
+    await assert.doesNotReject(async () => {
+      await vscode.commands.executeCommand("reticle.openPanel");
+    }, "the contributed Reticle view container must open");
   });
 
   test("returns a suffix-dependent insertion from the configured live endpoint", async function () {
