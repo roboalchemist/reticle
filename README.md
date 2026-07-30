@@ -31,10 +31,7 @@
 
 ---
 
-Reticle provides true fill-in-the-middle (FIM) ghost text in VS Code. It sends
-the code before and after your cursor to an OpenAI-compatible completion
-endpoint, then offers anything from a single identifier to a bounded
-multi-line edit. Press `Tab` once to accept the suggestion.
+Reticle offers completely local, Cursor-style tab autocomplete in VS Code.
 
 The project has two primary parts:
 
@@ -131,49 +128,17 @@ in chat prose. Verify the exact model and server together before relying on it:
 
 [Run model compatibility testing →](docs/model-compatibility.md#model-compatibility-testing)
 
-## How completion works
-
-Reticle connects directly to an OpenAI-compatible `POST /v1/completions`
-endpoint. Depending on the selected transport, it sends a separate OpenAI
-`suffix`, Qwen prefix-suffix-middle markers, Seed-Coder's
-suffix-prefix-middle format, or Codestral FIM tokens.
-
-Chat-only models are not compatible merely because their server exposes an
-OpenAI-shaped API. A compatible model must produce a clean insertion that
-respects both sides of the cursor.
-
-Suggestions trigger after a short typing pause. After you accept one, Reticle
-waits for your next edit before automatically suggesting again. To validate
-Reticle by itself, temporarily disable other inline-completion extensions so
-their ghost text is not mistaken for Reticle's.
-
 ## Documentation
 
+- [How completion works](docs/how-completion-works.md)
 - [Configuration](docs/configuration.md)
 - [Provider setup](docs/providers/README.md)
 - [Model compatibility testing and validated models](docs/model-compatibility.md)
+- [Troubleshooting](docs/troubleshooting.md)
 - [Reticle MLX for macOS](docs/providers/mlx.md)
 - [Development](docs/development.md)
 - [Releasing](docs/releasing.md)
 - [Changelog](CHANGELOG.md)
-
-## Troubleshooting
-
-- **Prose, explanations, or fenced Markdown:** use a Base/FIM checkpoint and
-  run model compatibility testing. Post-processing cannot make a model
-  suffix-aware.
-- **Repeated or rewritten suffix:** the server ignored the suffix or used the
-  wrong FIM serialization.
-- **Empty output:** confirm the exact ID through `/v1/models`, inspect the
-  provider logs, and increase `reticle.maxTokens`.
-- **Remote configuration error:** use HTTPS and provide an API key. Reticle
-  intentionally rejects insecure remote HTTP.
-- **Slow first suggestion:** cold model loading and prompt prefill can take
-  seconds; subsequent cache-aware requests should be faster.
-- **No suggestion in one language:** check the language allowlist and denylist.
-
-See the [configuration guide](docs/configuration.md) and the selected
-[provider guide](docs/providers/README.md) for detailed diagnostics.
 
 ## License
 

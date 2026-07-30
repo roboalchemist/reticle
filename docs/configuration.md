@@ -142,4 +142,4 @@ option.
 - [Provider setup](providers/README.md)
 - [Model compatibility testing](model-compatibility.md)
 - [Reticle MLX](providers/mlx.md)
-- [Troubleshooting in the README](../README.md#troubleshooting)
+- [Troubleshooting](troubleshooting.md)
