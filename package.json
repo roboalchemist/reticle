@@ -40,7 +40,9 @@
     "onStartupFinished",
     "onCommand:reticle.toggle",
     "onCommand:reticle.triggerCompletion",
-    "onCommand:reticle.testEndpoint"
+    "onCommand:reticle.testEndpoint",
+    "onCommand:reticle.openPanel",
+    "onView:reticle.panel"
   ],
   "contributes": {
     "commands": [
@@ -58,8 +60,31 @@
         "command": "reticle.testEndpoint",
         "title": "Test Autocomplete Endpoint",
         "category": "Reticle"
+      },
+      {
+        "command": "reticle.openPanel",
+        "title": "Open Control Panel",
+        "category": "Reticle"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "reticle",
+          "title": "Reticle",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "reticle": [
+        {
+          "type": "webview",
+          "id": "reticle.panel",
+          "name": "Health, Settings & Logs"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "reticle.toggle",

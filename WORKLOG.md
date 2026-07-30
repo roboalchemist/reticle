@@ -1,5 +1,16 @@
 # Worklog
 
+## 2026-07-29 — VS Code control panel
+
+- Added a dedicated Reticle Activity Bar panel that combines lightweight
+  endpoint health, the existing suffix-dependent FIM completion probe, editable
+  core settings, autocomplete state, and a live bounded log stream.
+- Kept advanced/secret configuration in VS Code's native settings editor while
+  making the common endpoint, model, FIM, generation, and trigger controls
+  directly editable in the panel.
+- Routed extension, completion, health, probe, and settings activity through
+  one log store shared by the panel and the Reticle Output channel.
+
 ## 2026-07-29 — Taller default Activity pane
 
 - Doubled the draggable Activity pane's preferred starting height from 120 to

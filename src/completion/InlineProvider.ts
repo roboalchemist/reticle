@@ -154,6 +154,10 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
     state.activeRequest = controller;
     this.activeNetworkRequests += 1;
     this.options.onStatusChange?.("working");
+    const startedAt = performance.now();
+    this.options.output?.appendLine(
+      `[autocomplete] ${manual ? "manual" : "automatic"} request started (${document.languageId}, ${settings.model}).`,
+    );
     const cancellation = token.onCancellationRequested(() => controller.abort());
     const documentVersion = document.version;
     const localContext = documentContext(document, position);
@@ -189,6 +193,9 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
       const unsupported = classifyUnsupportedResponse(raw);
       this.backoff.recordSuccess();
       if (unsupported) {
+        this.options.output?.appendLine(
+          `[autocomplete] Ignored ${unsupported} response after ${Math.round(performance.now() - startedAt)} ms.`,
+        );
         await showCompletionCompatibilityWarning(unsupported, settings.model, settings.baseURL);
         return { items: [] };
       }
@@ -203,8 +210,14 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
 
       const insertion = sanitizeCompletion(raw, sanitizeContext);
       if (!insertion) {
+        this.options.output?.appendLine(
+          `[autocomplete] No insertable text after ${Math.round(performance.now() - startedAt)} ms.`,
+        );
         return { items: [] };
       }
+      this.options.output?.appendLine(
+        `[autocomplete] Suggestion ready in ${Math.round(performance.now() - startedAt)} ms (${insertion.length} characters, ${insertion.split("\n").length} lines).`,
+      );
       this.offeredCompletions.set(documentScope, {
         documentVersion,
         insertion,
