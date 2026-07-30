@@ -285,11 +285,10 @@ service_loaded() {
 
 load_service() {
   [ -f "${plist_path}" ] || fail "service is not installed: ${plist_path}"
-  if service_loaded; then
-    launchctl kickstart -k "${service_target}"
-  else
+  if ! service_loaded; then
     launchctl bootstrap "${service_domain}" "${plist_path}"
   fi
+  launchctl kickstart -k "${service_target}"
 }
 
 unload_service() {

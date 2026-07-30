@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -59,6 +67,61 @@ describe("Reticle MLX service helper", () => {
     expect(invalidCache.stderr).toContain("must be a positive integer");
     expect(invalidFormat.status).toBe(1);
     expect(invalidFormat.stderr).toContain("must be codestral, seed, qwen, or openai");
+  });
+
+  it("demand-starts a freshly bootstrapped LaunchAgent", () => {
+    const home = mkdtempSync(join(tmpdir(), "reticle-mlx-start-"));
+    temporaryDirectories.push(home);
+    const bin = join(home, "bin");
+    const launchAgents = join(home, "Library", "LaunchAgents");
+    const launchctlState = join(home, "launchctl.state");
+    const launchctlLog = join(home, "launchctl.log");
+    mkdirSync(bin, { recursive: true });
+    mkdirSync(launchAgents, { recursive: true });
+    writeFileSync(
+      join(launchAgents, "io.github.roboalchemist.reticle-mlx.plist"),
+      "<plist><dict/></plist>\n",
+    );
+    writeExecutable(
+      join(bin, "launchctl"),
+      `#!/bin/sh
+case "$1" in
+  print) test -f "$MOCK_LAUNCHCTL_STATE" ;;
+  bootstrap)
+    touch "$MOCK_LAUNCHCTL_STATE"
+    printf '%s\\n' bootstrap >>"$MOCK_LAUNCHCTL_LOG"
+    ;;
+  kickstart)
+    test -f "$MOCK_LAUNCHCTL_STATE"
+    printf '%s\\n' kickstart >>"$MOCK_LAUNCHCTL_LOG"
+    ;;
+  *) exit 2 ;;
+esac
+`,
+    );
+    writeExecutable(join(bin, "curl"), "#!/bin/sh\nprintf '%s\\n' '{\"status\":\"ok\"}'\n");
+
+    const result = spawnSync(join(process.cwd(), "scripts", "reticle-mlx"), ["start"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOME: home,
+        PATH: `${bin}:/usr/bin:/bin`,
+        MOCK_LAUNCHCTL_STATE: launchctlState,
+        MOCK_LAUNCHCTL_LOG: launchctlLog,
+        RETICLE_MLX_MODEL: "example/model",
+        RETICLE_MLX_FIM_FORMAT: "seed",
+        RETICLE_MLX_PORT: "8001",
+        RETICLE_MLX_PROMPT_CACHE_SIZE: "8",
+        RETICLE_MLX_PROMPT_CACHE_BYTES: "4294967296",
+        RETICLE_MLX_SKIP_FIM_WARMUP: "1",
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Reticle MLX is healthy");
+    expect(readFileSync(launchctlLog, "utf8")).toBe("bootstrap\nkickstart\n");
   });
 
   it("loads the installed model format and verifies real FIM behavior", () => {
