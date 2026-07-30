@@ -1,5 +1,19 @@
 # Worklog
 
+## 2026-07-30 — Zeta 2.1 model preview
+
+- Added Zed Industries' Apache-2.0 `zeta-2.1` source model to the Reticle MLX
+  catalog through a 4-bit MLX-LM conversion, with a direct link to the
+  authoritative upstream model card.
+- Downloaded the complete 4.65 GB artifact and verified that MLX-LM 0.31.1
+  loads it and reproduces the official multi-region sample.
+- Tested the same build through Reticle's existing Seed SPM request. It
+  emitted the native edit-prediction cursor/region protocol instead of a valid
+  insertion, confirming that it must not be exposed as ordinary FIM.
+- Made the model downloadable and visibly ready for Next Edit while gating
+  Select and excluding it from FIM benchmarks until the extension implements
+  edit history, numbered region serialization, and rewrite parsing.
+
 ## 2026-07-30 — Native status clarity and menu-bar sizing
 
 - Renamed the user-facing healthy state to “Model running” so the menu and

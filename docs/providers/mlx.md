@@ -82,13 +82,15 @@ service that remains in **Starting or unhealthy**.
 
 ## Supported model cards
 
-All six presets below were downloaded and exercised through their real managed
-runtime on an Apple M3 Max. Each returned the suffix-only identifier required by
-Reticle's FIM doctor.
+The six selectable FIM presets below were downloaded and exercised through
+their real managed runtime on an Apple M3 Max. Each returned the suffix-only
+identifier required by Reticle's FIM doctor. Zeta 2.1 is also downloadable as a
+native Next Edit preview, but is deliberately not selectable as ordinary FIM.
 
 | Preset                      | Runtime | Download | Memory floor | Best for                          |
 | --------------------------- | ------- | -------: | -----------: | --------------------------------- |
 | Seed-Coder 8B mixed 3/4-bit | MLX-LM  |   3.6 GB |        16 GB | Best tested completion quality    |
+| Zeta 2.1 4-bit              | MLX-LM  |   4.7 GB |        16 GB | Native next-edit model preview    |
 | Zeta 7B 4-bit               | MLX-LM  |   4.3 GB |        16 GB | Next-edit-tuned local completion  |
 | Qwen2.5-Coder 1.5B Base     | MLX-LM  |   0.9 GB |         8 GB | Lowest latency and memory         |
 | Qwen2.5-Coder 3B Base       | MLX-LM  |   1.7 GB |        12 GB | Balanced everyday use             |
@@ -108,6 +110,14 @@ used about 4.8 GB peak memory across the 33-case public Zeta eval. The 8-bit
 conversion produced the same output in 26/33 cases and the same 15 exact
 references, but decoded at about 46 tokens/s and used about 8.5 GB. That
 latency/memory tradeoff is why the app selects 4-bit.
+
+[Zeta 2.1](https://huggingface.co/zed-industries/zeta-2.1) is a newer
+Seed-Coder 8B fine-tune that predicts numbered editable-region rewrites from
+code context, recent edit history, and the cursor. Reticle MLX exposes a
+Mac-ready 4-bit download in the model catalog, but does not offer **Select**
+yet: Zeta 2.1 does not behave as ordinary Seed FIM, and activating it through
+the current extension would produce invalid ghost text. The downloaded model
+is ready for Reticle's forthcoming native Next Edit transport.
 
 Codestral's community MLX conversion contains correct weights but an old
 Transformers tokenizer that does not expose its FIM control IDs. Reticle creates

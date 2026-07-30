@@ -234,7 +234,7 @@ struct SettingsView: View {
     VStack(alignment: .leading, spacing: 12) {
       pageHeader(
         "Models",
-        subtitle: "Compare, download, and select validated fill-in-the-middle models"
+        subtitle: "Compare local completion and next-edit models for Apple Silicon"
       )
 
       ScrollView {
@@ -375,7 +375,7 @@ struct SettingsView: View {
         GroupBox("Run Benchmark") {
           VStack(alignment: .leading, spacing: 10) {
             Picker("Model", selection: $benchmarkPresetID) {
-              ForEach(ModelPreset.suggested) { preset in
+              ForEach(ModelPreset.inlineCompletionPresets) { preset in
                 Text(preset.name).tag(preset.id)
               }
             }
@@ -587,7 +587,7 @@ struct SettingsView: View {
   }
 
   private var selectedBenchmarkPreset: ModelPreset? {
-    ModelPreset.suggested.first { $0.id == benchmarkPresetID }
+    ModelPreset.inlineCompletionPresets.first { $0.id == benchmarkPresetID }
   }
 
   private func runBenchmark() async {
@@ -684,7 +684,8 @@ struct SettingsView: View {
       active: active,
       downloadDisabled: downloaded || downloads.isBusy || controller.isBusy,
       onDownload: { controller.download(preset) },
-      selectionDisabled: !downloaded || downloads.isBusy || controller.isBusy
+      selectionDisabled: !preset.supportsInlineCompletion || !downloaded || downloads.isBusy
+        || controller.isBusy
         || loadingPresetID != nil,
       onSelect: {
         Task {
@@ -699,7 +700,9 @@ struct SettingsView: View {
   }
 
   private func activate(_ preset: ModelPreset) async {
-    guard downloads.isDownloaded(preset), loadingPresetID == nil else { return }
+    guard preset.supportsInlineCompletion, downloads.isDownloaded(preset),
+      loadingPresetID == nil
+    else { return }
     loadingPresetID = preset.id
     defer { loadingPresetID = nil }
 
@@ -779,7 +782,7 @@ struct SettingsView: View {
     cacheSize = String(saved.promptCacheSize)
     cacheGigabytes = String(max(1, saved.promptCacheBytes / 1_073_741_824))
     selectedPresetID =
-      ModelPreset.suggested.first {
+      ModelPreset.inlineCompletionPresets.first {
         $0.model == saved.model && $0.fimFormat == saved.fimFormat && $0.runtime == saved.runtime
       }?.id ?? ModelPreset.custom.id
   }
@@ -852,6 +855,11 @@ private struct ModelCardView: View {
         .lineLimit(2)
         .fixedSize(horizontal: false, vertical: true)
 
+      if let upstreamURL = preset.upstreamURL {
+        Link("Official model card", destination: upstreamURL)
+          .font(.caption)
+      }
+
       HStack(spacing: 14) {
         ModelScore(label: "Quality", score: preset.qualityScore)
         ModelScore(label: "Speed", score: preset.speedScore)
@@ -904,6 +912,10 @@ private struct ModelCardView: View {
       if loading {
         Button("Loading…") {}
           .buttonStyle(.borderedProminent)
+          .disabled(true)
+      } else if !preset.supportsInlineCompletion {
+        Button(downloaded ? "Ready for Next Edit" : "Next Edit model") {}
+          .buttonStyle(.bordered)
           .disabled(true)
       } else if selected {
         Button("Selected") {}

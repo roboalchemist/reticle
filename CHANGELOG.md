@@ -2,6 +2,15 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.15.0
+
+- Add Zeta 2.1 as a prominent downloadable Apple Silicon model, backed by a
+  tested 4-bit MLX-LM conversion and linked to Zed Industries' official model
+  card.
+- Identify Zeta 2.1 as a native Next Edit model and prevent the current FIM
+  extension from activating it until Reticle implements its multi-region
+  prompt and edit transport.
+
 ## 0.14.4
 
 - Rename the native healthy state to “Model running” so the menu, settings
