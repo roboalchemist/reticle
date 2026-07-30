@@ -2,6 +2,13 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.14.3
+
+- Replace the technical landing-page introduction with a concise description
+  of completely local, Cursor-style tab autocomplete.
+- Move completion internals and troubleshooting into focused guides linked
+  from the README documentation list.
+
 ## 0.14.2
 
 - Lead with the VS Code extension in the product overview and remove the
