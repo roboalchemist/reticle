@@ -14,7 +14,7 @@ enum ServiceState: Equatable {
   var title: String {
     switch self {
     case .checking: "Checking…"
-    case .healthy: "Healthy"
+    case .healthy: "Model running"
     case .starting: "Starting"
     case .unhealthy: "Unhealthy"
     case .stopped: "Stopped"
