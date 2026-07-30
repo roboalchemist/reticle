@@ -675,6 +675,8 @@ struct SettingsView: View {
     let downloaded = downloads.isDownloaded(preset)
     let active = downloads.active?.modelID == preset.id ? downloads.active : nil
     let loading = loadingPresetID == preset.id
+    let configured = controller.isConfigured(preset)
+    let deleting = controller.removingModelID == preset.id
 
     return ModelCardView(
       preset: preset,
@@ -684,6 +686,16 @@ struct SettingsView: View {
       active: active,
       downloadDisabled: downloaded || downloads.isBusy || controller.isBusy,
       onDownload: { controller.download(preset) },
+      deleting: deleting,
+      deleteDisabled: configured || downloads.isBusy || controller.isBusy || loadingPresetID != nil,
+      deleteHelp: configured
+        ? "Switch to another model before deleting this model."
+        : "Delete this model from its local cache.",
+      onDelete: {
+        Task {
+          await controller.remove(preset)
+        }
+      },
       selectionDisabled: !preset.supportsInlineCompletion || !downloaded || downloads.isBusy
         || controller.isBusy
         || loadingPresetID != nil,
@@ -830,12 +842,17 @@ private struct ModelCardView: View {
   let active: ModelDownloadProgress?
   let downloadDisabled: Bool
   let onDownload: () -> Void
+  let deleting: Bool
+  let deleteDisabled: Bool
+  let deleteHelp: String
+  let onDelete: () -> Void
   let selectionDisabled: Bool
   let onSelect: () -> Void
   let onPause: () -> Void
   let onResume: () -> Void
   let onCancel: () -> Void
   let statusText: String
+  @State private var confirmingDelete = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -879,6 +896,14 @@ private struct ModelCardView: View {
       RoundedRectangle(cornerRadius: 10)
         .stroke(selected ? Color.indigo.opacity(0.75) : Color.secondary.opacity(0.18), lineWidth: 1)
     )
+    .alert("Delete \(preset.name)?", isPresented: $confirmingDelete) {
+      Button("Cancel", role: .cancel) {}
+      Button("Delete Model", role: .destructive, action: onDelete)
+    } message: {
+      Text(
+        "This deletes \(preset.model) from this Mac and should reclaim approximately \(preset.formattedDownloadSize). You can download it again later."
+      )
+    }
   }
 
   private var title: some View {
@@ -909,6 +934,13 @@ private struct ModelCardView: View {
     HStack(spacing: 8) {
       Button(downloaded ? "Downloaded" : "Download", action: onDownload)
         .disabled(downloadDisabled)
+      if downloaded {
+        Button(deleting ? "Deleting…" : "Delete", role: .destructive) {
+          confirmingDelete = true
+        }
+        .disabled(deleteDisabled)
+        .help(deleteHelp)
+      }
       if loading {
         Button("Loading…") {}
           .buttonStyle(.borderedProminent)

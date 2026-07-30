@@ -35,6 +35,7 @@ Commands:
   download    Download the selected model without changing the running service
   model-status
               Report whether the selected model is completely cached
+  remove      Delete the selected model from the Hugging Face cache
   start       Load the installed LaunchAgent and warm the FIM path
   stop        Unload the LaunchAgent without deleting it
   restart     Restart the LaunchAgent and warm the FIM path
@@ -280,6 +281,57 @@ if has_weights and has_tokenizer:
 else:
     print(f"partial\t{model}")
     raise SystemExit(1)
+PY
+}
+
+remove_model() {
+  [ ! -d "${model}" ] ||
+    fail "refusing to delete a local model directory: ${model}"
+  [ -x "${venv_path}/bin/python" ] ||
+    fail "the private MLX runtime is not installed; no managed model cache was changed"
+  "${venv_path}/bin/python" - "${model}" <<'PY'
+import sys
+
+from huggingface_hub import scan_cache_dir
+
+model = sys.argv[1]
+
+
+def format_bytes(size):
+    value = float(size)
+    for unit in ("bytes", "KB", "MB", "GB", "TB"):
+        if value < 1000 or unit == "TB":
+            return f"{value:.0f} {unit}" if unit == "bytes" else f"{value:.1f} {unit}"
+        value /= 1000
+
+
+try:
+    cache = scan_cache_dir()
+except Exception as error:
+    print(f"Could not inspect the Hugging Face cache: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+repository = next(
+    (
+        repo
+        for repo in cache.repos
+        if repo.repo_type == "model" and repo.repo_id == model
+    ),
+    None,
+)
+if repository is None:
+    print(f"{model} is not downloaded; no files were removed.")
+    raise SystemExit(0)
+
+revisions = [revision.commit_hash for revision in repository.revisions]
+if not revisions:
+    print(f"{model} has no cached revisions; no files were removed.")
+    raise SystemExit(0)
+
+strategy = cache.delete_revisions(*revisions)
+expected = strategy.expected_freed_size
+strategy.execute()
+print(f"Deleted {model}. Reclaimed approximately {format_bytes(expected)}.")
 PY
 }
 
@@ -837,6 +889,9 @@ case "${command}" in
     ;;
   model-status)
     model_status
+    ;;
+  remove)
+    remove_model
     ;;
   start)
     load_service

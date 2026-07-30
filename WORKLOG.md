@@ -1,5 +1,18 @@
 # Worklog
 
+## 2026-07-30 — Safe downloaded-model deletion
+
+- Added a destructive action only to downloaded model cards, with confirmation
+  text naming the exact repository and its approximate catalog size.
+- Refused deletion of the configured service model so a running service is
+  never interrupted and a later launch cannot silently redownload its missing
+  model.
+- Used Hugging Face Hub's cache scan and revision-deletion strategy for MLX-LM
+  repositories and MTPLX's native `remove --missing-ok` command for MTPLX
+  models. Local custom model directories are never removed.
+- Refreshed in-app downloaded state after success and report backend output,
+  including reclaimed space, through the existing Activity pane.
+
 ## 2026-07-30 — Zeta 2.1 model preview
 
 - Added Zed Industries' Apache-2.0 `zeta-2.1` source model to the Reticle MLX

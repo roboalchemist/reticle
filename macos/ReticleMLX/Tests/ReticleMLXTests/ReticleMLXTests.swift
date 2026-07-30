@@ -408,6 +408,66 @@ final class ReticleMLXTests: XCTestCase {
   }
 
   @MainActor
+  func testServiceControllerDeletesDownloadedInactiveModel() async throws {
+    let suite = "ReticleMLXTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    ServiceConfiguration.defaults.save(to: defaults)
+
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("reticle-remove-test-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let script = directory.appendingPathComponent("reticle-mlx")
+    try """
+    #!/bin/sh
+    test "$1" = "remove"
+    test "$RETICLE_MLX_MODEL" = "\(ModelPreset.qwenCoder1Point5B.model)"
+    printf 'Deleted %s. Reclaimed approximately 1.0 GB.\\n' "$RETICLE_MLX_MODEL"
+    """.write(to: script, atomically: true, encoding: .utf8)
+    XCTAssertEqual(chmod(script.path, 0o755), 0)
+
+    let downloads = ModelDownloadController()
+    downloads.markDownloaded(ModelPreset.qwenCoder1Point5B, downloaded: true)
+    let controller = ServiceController(
+      mlxRunner: CommandRunner(executableURL: script),
+      mtplxRunner: nil,
+      downloads: downloads,
+      defaults: defaults
+    )
+
+    await controller.remove(ModelPreset.qwenCoder1Point5B)
+
+    XCTAssertFalse(downloads.isDownloaded(ModelPreset.qwenCoder1Point5B))
+    XCTAssertNil(controller.removingModelID)
+    XCTAssertTrue(controller.output.contains("Reclaimed approximately 1.0 GB"))
+  }
+
+  @MainActor
+  func testServiceControllerRefusesToDeleteConfiguredModel() async {
+    let suite = "ReticleMLXTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    ServiceConfiguration.defaults.save(to: defaults)
+    let downloads = ModelDownloadController()
+    downloads.markDownloaded(ModelPreset.seedCoder, downloaded: true)
+    let controller = ServiceController(
+      mlxRunner: nil,
+      mtplxRunner: nil,
+      downloads: downloads,
+      defaults: defaults
+    )
+
+    await controller.remove(ModelPreset.seedCoder)
+
+    XCTAssertTrue(downloads.isDownloaded(ModelPreset.seedCoder))
+    XCTAssertEqual(
+      controller.output,
+      "Switch to another model before deleting \(ModelPreset.seedCoder.name)."
+    )
+  }
+
+  @MainActor
   func testDownloadControllerPausesResumesAndCancelsWorker() async throws {
     let directory = FileManager.default.temporaryDirectory
       .appendingPathComponent("reticle-download-test-\(UUID().uuidString)")

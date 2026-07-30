@@ -26,6 +26,7 @@ Commands:
   install     Install MTPLX/model, create the user LaunchAgent, and wait for health
   download    Download or resume the selected model with machine-readable progress
   model-status Check whether the selected model is cached and MTPLX-compatible
+  remove      Delete the selected model from the MTPLX cache
   start       Load the previously installed LaunchAgent
   stop        Unload the LaunchAgent without deleting it
   restart     Restart the loaded LaunchAgent
@@ -176,6 +177,11 @@ model_status() {
   [ "${can_run}" = "true" ] && [ "${mtp_exists}" = "true" ] ||
     fail "model is not a runnable native-MTP model: ${model}"
   printf 'model: %s\nruntime: mtplx\nFIM format: qwen\n' "${model}"
+}
+
+remove_model() {
+  mtplx_path="$(resolve_mtplx)" || fail "mtplx executable not found"
+  "${mtplx_path}" remove "${model}" --missing-ok --json
 }
 
 install_mtplx() {
@@ -487,6 +493,9 @@ case "${command}" in
     ;;
   model-status)
     model_status
+    ;;
+  remove)
+    remove_model
     ;;
   start)
     load_service

@@ -44,6 +44,41 @@ describe("Reticle MLX service helper", () => {
     expect(result.stdout).toContain("RETICLE_MLX_MLX_VERSION");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("monitor");
+    expect(result.stdout).toContain("remove");
+  });
+
+  it("removes only the selected managed model and refuses local directories", () => {
+    const home = mkdtempSync(join(tmpdir(), "reticle-mlx-remove-"));
+    temporaryDirectories.push(home);
+    const venvBin = join(home, ".reticle", "mlx", "venv", "bin");
+    const localModel = join(home, "local-model");
+    mkdirSync(venvBin, { recursive: true });
+    mkdirSync(localModel);
+    writeExecutable(
+      join(venvBin, "python"),
+      `#!/bin/sh
+test "$1" = "-"
+test "$2" = "example/model"
+printf '%s\\n' 'Deleted example/model. Reclaimed approximately 4.0 GB.'
+`,
+    );
+    const command = join(process.cwd(), "scripts", "reticle-mlx");
+    const env = {
+      ...process.env,
+      HOME: home,
+      RETICLE_MLX_MODEL: "example/model",
+    };
+
+    const removed = spawnSync(command, ["remove"], { encoding: "utf8", env });
+    const refused = spawnSync(command, ["remove"], {
+      encoding: "utf8",
+      env: { ...env, RETICLE_MLX_MODEL: localModel },
+    });
+
+    expect(removed.status).toBe(0);
+    expect(removed.stdout).toContain("Deleted example/model");
+    expect(refused.status).toBe(1);
+    expect(refused.stderr).toContain("refusing to delete a local model directory");
   });
 
   it("rejects invalid port and prompt cache settings before external work", () => {

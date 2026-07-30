@@ -2,6 +2,15 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.15.1
+
+- Add per-model deletion to the macOS model catalog, including an exact-model
+  confirmation, approximate reclaimed space, activity feedback, and immediate
+  downloaded-state refresh.
+- Protect the configured model and local custom directories from deletion, and
+  delegate cache cleanup to Hugging Face Hub or MTPLX instead of deleting broad
+  cache paths.
+
 ## 0.15.0
 
 - Add Zeta 2.1 as a prominent downloadable Apple Silicon model, backed by a

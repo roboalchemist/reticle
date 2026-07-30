@@ -109,28 +109,32 @@ final class ServiceController: ObservableObject {
   @Published private(set) var logOutput = ""
   @Published private(set) var logDirectory = ""
   @Published private(set) var isLoadingLogs = false
+  @Published private(set) var removingModelID: String?
 
   let downloads: ModelDownloadController
   private let mlxRunner: CommandRunner?
   private let mtplxRunner: CommandRunner?
+  private let defaults: UserDefaults
   private var isRefreshing = false
   private var stateResolver = ServiceStateResolver()
 
   init(
     mlxRunner: CommandRunner? = CommandRunner.resolveExecutable().map(CommandRunner.init),
     mtplxRunner: CommandRunner? = CommandRunner.resolveMTPLXExecutable().map(CommandRunner.init),
-    downloads: ModelDownloadController? = nil
+    downloads: ModelDownloadController? = nil,
+    defaults: UserDefaults = .standard
   ) {
     self.mlxRunner = mlxRunner
     self.mtplxRunner = mtplxRunner
     self.downloads = downloads ?? ModelDownloadController()
+    self.defaults = defaults
   }
 
   func refresh() async {
     guard !isBusy, !isRefreshing else { return }
     isRefreshing = true
     defer { isRefreshing = false }
-    let runtime = ServiceConfiguration.load().runtime
+    let runtime = ServiceConfiguration.load(from: defaults).runtime
     let runner = runner(for: runtime)
     guard let runner else {
       state = .notInstalled
@@ -156,7 +160,7 @@ final class ServiceController: ObservableObject {
   }
 
   func install(_ configuration: ServiceConfiguration) async {
-    configuration.save()
+    configuration.save(to: defaults)
     if let otherRunner = runner(for: configuration.runtime == .mlxLM ? .mtplx : .mlxLM) {
       _ = await otherRunner.run("stop")
     }
@@ -175,6 +179,50 @@ final class ServiceController: ObservableObject {
       return
     }
     downloads.start(preset, executableURL: runner.executableURL)
+  }
+
+  func isConfigured(_ preset: ModelPreset) -> Bool {
+    let configuration = ServiceConfiguration.load(from: defaults)
+    return configuration.runtime == preset.runtime && configuration.model == preset.model
+  }
+
+  func remove(_ preset: ModelPreset) async {
+    guard !isBusy, !downloads.isBusy else {
+      output = "Wait for the current Reticle operation to finish before deleting a model."
+      return
+    }
+    guard !isConfigured(preset) else {
+      output = "Switch to another model before deleting \(preset.name)."
+      return
+    }
+    guard let runner = runner(for: preset.runtime) else {
+      output = "The \(preset.runtime.displayName) helper is missing from the app bundle."
+      return
+    }
+
+    let environment: [String: String]
+    switch preset.runtime {
+    case .mlxLM:
+      environment = ["RETICLE_MLX_MODEL": preset.model]
+    case .mtplx:
+      environment = ["MTPLX_MODEL": preset.model]
+    }
+
+    isBusy = true
+    removingModelID = preset.id
+    output = "Deleting \(preset.name)…"
+    let result = await runner.run("remove", environment: environment)
+    let commandOutput = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+    output =
+      commandOutput.isEmpty
+      ? (result.succeeded
+        ? "Deleted \(preset.name)." : "Could not delete \(preset.name).")
+      : commandOutput
+    if result.succeeded {
+      downloads.markDownloaded(preset, downloaded: false)
+    }
+    removingModelID = nil
+    isBusy = false
   }
 
   func refreshModelDownloads() async {
@@ -202,19 +250,19 @@ final class ServiceController: ObservableObject {
   }
 
   func start() async {
-    await perform("start", runtime: ServiceConfiguration.load().runtime)
+    await perform("start", runtime: ServiceConfiguration.load(from: defaults).runtime)
   }
 
   func stop() async {
-    await perform("stop", runtime: ServiceConfiguration.load().runtime)
+    await perform("stop", runtime: ServiceConfiguration.load(from: defaults).runtime)
   }
 
   func restart() async {
-    await perform("restart", runtime: ServiceConfiguration.load().runtime)
+    await perform("restart", runtime: ServiceConfiguration.load(from: defaults).runtime)
   }
 
   func doctor() async {
-    await perform("doctor", runtime: ServiceConfiguration.load().runtime)
+    await perform("doctor", runtime: ServiceConfiguration.load(from: defaults).runtime)
   }
 
   func installVSCodeExtension() async {
@@ -239,7 +287,7 @@ final class ServiceController: ObservableObject {
   }
 
   func openLogs() {
-    let runtime = ServiceConfiguration.load().runtime
+    let runtime = ServiceConfiguration.load(from: defaults).runtime
     let path = runtime == .mtplx ? "~/.mtplx/logs" : "~/.reticle/mlx/logs"
     let logs = URL(
       fileURLWithPath: NSString(string: path).expandingTildeInPath,
@@ -252,7 +300,7 @@ final class ServiceController: ObservableObject {
   func refreshLogs() async {
     guard !isLoadingLogs else { return }
     isLoadingLogs = true
-    let runtime = ServiceConfiguration.load().runtime
+    let runtime = ServiceConfiguration.load(from: defaults).runtime
     let serviceOutput = output
     let snapshot = await Task.detached(priority: .userInitiated) {
       ServiceLogReader.read(runtime: runtime)
@@ -281,7 +329,7 @@ final class ServiceController: ObservableObject {
 
   func exportLogs() {
     guard !logOutput.isEmpty else { return }
-    let runtime = ServiceConfiguration.load().runtime
+    let runtime = ServiceConfiguration.load(from: defaults).runtime
     let panel = NSSavePanel()
     panel.allowedContentTypes = [.plainText]
     panel.canCreateDirectories = true

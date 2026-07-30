@@ -148,6 +148,12 @@ MTPLX uses its own resumable downloader and model cache:
 MTPLX logs and persistent session-cache metadata remain under `~/.mtplx/`.
 Uninstalling the app or LaunchAgents preserves models and caches.
 
+To reclaim space, open **Models** in Reticle MLX and choose **Delete** on a
+downloaded model. Reticle confirms the exact model and approximate size before
+using the selected runtime's cache manager to remove only that model. The model
+currently configured for the service is protected; select another downloaded
+model first. Deleted models remain in the catalog and can be downloaded again.
+
 ## Runtime controls
 
 The server port is shared with the matching VS Code configuration. MLX-LM also

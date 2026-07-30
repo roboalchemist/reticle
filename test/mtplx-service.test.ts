@@ -43,6 +43,7 @@ describe("MTPLX service helper", () => {
     expect(result.stdout).toContain("MTPLX_SKIP_FIM_WARMUP");
     expect(result.stdout).toContain("download");
     expect(result.stdout).toContain("model-status");
+    expect(result.stdout).toContain("remove");
     expect(result.stdout).toContain("doctor");
   });
 
@@ -304,6 +305,12 @@ case "$1" in
   inspect)
     printf '%s\\n' '{"compatibility":{"can_run":true},"mtp":{"exists":true}}'
     ;;
+  remove)
+    test "$2" = "example/native-mtp"
+    test "$3" = "--missing-ok"
+    test "$4" = "--json"
+    printf '%s\\n' '{"removed":true,"model":"example/native-mtp","freed_bytes":100}'
+    ;;
   *) exit 2 ;;
 esac
 `,
@@ -324,6 +331,10 @@ esac
       encoding: "utf8",
       env,
     });
+    const removed = spawnSync(join(process.cwd(), "scripts", "mtplx-service"), ["remove"], {
+      encoding: "utf8",
+      env,
+    });
 
     expect(download.status).toBe(0);
     expect(download.stdout).toContain("RETICLE_DOWNLOAD_WORKER");
@@ -331,5 +342,7 @@ esac
     expect(status.status).toBe(0);
     expect(status.stdout).toContain("runtime: mtplx");
     expect(status.stdout).toContain("FIM format: qwen");
+    expect(removed.status).toBe(0);
+    expect(removed.stdout).toContain('"removed":true');
   });
 });
