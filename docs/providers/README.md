@@ -12,4 +12,7 @@ Every Reticle provider must expose `POST /v1/completions`, return text in `choic
 | LM Studio   | `http://127.0.0.1:1234/v1`                  | [Setup](lm-studio.md) | verify           |
 | Hosted      | provider-specific HTTPS URL ending in `/v1` | [Setup](remote.md)    | verify           |
 
-Run the exact probe in the selected guide before enabling Reticle. Endpoint names alone are insufficient: some servers expose `/v1/completions` but ignore `suffix`, and some coding models answer in chat prose.
+Run [model compatibility testing](../model-compatibility.md#model-compatibility-testing)
+before enabling Reticle. Endpoint names alone are insufficient: some servers
+expose `/v1/completions` but ignore `suffix`, and some coding models answer in
+chat prose.

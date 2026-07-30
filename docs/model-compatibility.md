@@ -1,11 +1,61 @@
-# Model compatibility
+# Model compatibility testing
 
 Reticle needs two independent capabilities:
 
 1. the checkpoint produces a clean fill-in-the-middle insertion; and
 2. the server maps OpenAI `prompt` + `suffix` onto that checkpoint's FIM format.
 
-A benchmark that manually embeds `<|fim_prefix|>` markers proves model behavior, but does not automatically prove that an arbitrary `/v1/completions` server will perform the mapping for Reticle. Always run the [litmus probe](../README.md#the-compatibility-litmus) against the exact model/server pair.
+A benchmark that manually embeds `<|fim_prefix|>` markers proves model
+behavior, but does not automatically prove that an arbitrary
+`/v1/completions` server will perform the mapping for Reticle. Always test the
+exact model, server, and FIM format together.
+
+## Run the test
+
+The easiest test is **Reticle: Test Autocomplete Endpoint** from the VS Code
+Command Palette. It sends a fixed suffix-dependent request and distinguishes a
+clean insertion from a rewritten function, repeated suffix, chat prose, or
+Markdown fence.
+
+To inspect the raw response from a server that maps separate OpenAI `prompt`
+and `suffix` fields, send the equivalent non-streaming request yourself. Change
+the URL, model ID, and authorization required by the selected provider guide:
+
+```bash
+curl --silent --show-error https://HOST/v1/completions \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "MODEL_ID",
+    "prompt": "function add(a, b) {\n  return ",
+    "suffix": "\n}\n",
+    "max_tokens": 32,
+    "temperature": 0,
+    "stream": false
+  }'
+```
+
+A compatible response contains a bare insertion in `choices[0].text`, such as
+`a + b`, without the suffix, a rewritten function, an explanation, or a
+Markdown fence. Once that passes, repeat with `"stream": true`; Reticle uses the
+streaming path during normal completion.
+
+An HTTP 200 proves only that the server accepted the JSON. Some servers silently
+ignore `suffix`, and some coding models still answer as chat. Treat the
+model/server pair as compatible only when the output depends on both the prefix
+and suffix.
+
+For Reticle's built-in test, configure the matching transport first:
+
+| Model family                                       | `reticle.fimFormat` |
+| -------------------------------------------------- | ------------------- |
+| Server maps separate `prompt` + `suffix` correctly | `openai`            |
+| Qwen2.5-Coder, validated Zeta builds, MTPLX        | `qwen`              |
+| Seed-Coder                                         | `seed`              |
+| Codestral                                          | `codestral`         |
+
+See the matching [provider setup guide](providers/README.md) for endpoint-
+specific preparation and caveats.
 
 ## Validated working paths
 

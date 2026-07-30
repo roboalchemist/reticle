@@ -2,6 +2,15 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.14.1
+
+- Refocus the landing page on the complete Reticle MLX + VS Code setup and the
+  standalone extension path for existing completion endpoints.
+- Replace the retired Marketplace badge endpoint with the shared release
+  version badge.
+- Move configuration and development instructions into dedicated guides, and
+  consolidate provider validation under model compatibility testing.
+
 ## 0.14.0
 
 - List model IDs reported by the configured `/v1/models` endpoint as editable
