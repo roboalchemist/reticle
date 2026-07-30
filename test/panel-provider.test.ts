@@ -62,7 +62,12 @@ describe("Reticle panel provider", () => {
       "fetch",
       vi.fn((_input: string | URL | Request, init?: RequestInit) => {
         if (init?.method === "GET") {
-          return Promise.resolve(new Response('{"data":[]}', { status: 200 }));
+          return Promise.resolve(
+            new Response(
+              '{"data":[{"id":"mlx-community/zed-industries-zeta-4bit"},{"id":"default_model"}]}',
+              { status: 200 },
+            ),
+          );
         }
         return Promise.resolve(
           new Response('{"choices":[{"text":"suffixOnlyIdentifier"}]}', {
@@ -82,13 +87,13 @@ describe("Reticle panel provider", () => {
     let receiveMessage: ((message: unknown) => void) | undefined;
     const postMessage = vi.fn<(message: unknown) => Promise<boolean>>(() => Promise.resolve(true));
     const postedStates = (): Array<{
-      state?: { health?: { status?: string } };
+      state?: { availableModels?: string[]; health?: { status?: string } };
       type?: string;
     }> =>
       postMessage.mock.calls.map(
         ([message]) =>
           message as {
-            state?: { health?: { status?: string } };
+            state?: { availableModels?: string[]; health?: { status?: string } };
             type?: string;
           },
       );
@@ -120,6 +125,13 @@ describe("Reticle panel provider", () => {
           ),
         ).toBe(true);
       });
+      expect(
+        postedStates().some(
+          (message) =>
+            message.type === "state" &&
+            message.state?.availableModels?.includes("mlx-community/zed-industries-zeta-4bit"),
+        ),
+      ).toBe(true);
 
       receiveMessage?.({
         settings: {

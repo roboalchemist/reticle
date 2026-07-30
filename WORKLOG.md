@@ -1,5 +1,20 @@
 # Worklog
 
+## 2026-07-29 — Endpoint-backed model picker
+
+- Reused the panel health request to parse the standard OpenAI-compatible
+  `/v1/models` response and present its IDs as editable model suggestions.
+- MLX-LM's endpoint scans the local Hugging Face cache and only returns model
+  snapshots with the MLX config, tokenizer, and weight index required for
+  on-demand loading; it does not advertise models that have not been
+  downloaded.
+- Kept arbitrary model entry and the configured `default_model` alias
+  available, bounded and deduplicated untrusted endpoint responses, and left
+  FIM selection explicit because the standard model response has no prompt
+  compatibility metadata.
+- Prevented periodic health/log state updates from overwriting an unsaved
+  settings form while the user is selecting a model.
+
 ## 2026-07-29 — VS Code control panel
 
 - Added a dedicated Reticle Activity Bar panel that combines lightweight

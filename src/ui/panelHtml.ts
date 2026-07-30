@@ -98,6 +98,11 @@ export function panelHtml(cspSource: string, nonce: string, logoUri: string): st
       background: color-mix(in srgb, var(--vscode-testing-iconQueued) 15%, transparent);
     }
     .endpoint { font-family: var(--vscode-editor-font-family); overflow-wrap: anywhere; }
+    .field-note {
+      color: var(--vscode-descriptionForeground);
+      font-size: 10px;
+      line-height: 1.35;
+    }
     .notice { min-height: 18px; margin-top: 8px; }
     pre {
       background: var(--vscode-textCodeBlock-background);
@@ -140,7 +145,11 @@ export function panelHtml(cspSource: string, nonce: string, logoUri: string): st
     </div>
     <form id="settings-form" class="grid">
       <label class="wide">Base URL<input id="baseURL" type="url" required></label>
-      <label class="wide">Model<input id="model" type="text" required></label>
+      <label class="wide">Available model
+        <input id="model" type="text" list="model-options" autocomplete="off" required>
+        <datalist id="model-options"></datalist>
+        <span id="model-help" class="field-note">Checking the endpoint for models…</span>
+      </label>
       <label>FIM format
         <select id="fimFormat">
           <option value="qwen">Qwen</option>
@@ -176,10 +185,34 @@ export function panelHtml(cspSource: string, nonce: string, logoUri: string): st
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const byId = (id) => document.getElementById(id);
+    let formDirty = false;
+
     function setBusy(busy) {
       for (const id of ["check-health", "trigger-completion", "save-settings"]) {
         byId(id).disabled = busy;
       }
+    }
+
+    function renderModelOptions(modelIds, configuredModel, baseURL) {
+      const ids = [];
+      const seen = new Set();
+      for (const id of [configuredModel, ...(Array.isArray(modelIds) ? modelIds : [])]) {
+        if (typeof id !== "string" || id.length === 0 || seen.has(id)) continue;
+        seen.add(id);
+        ids.push(id);
+      }
+      const fragment = document.createDocumentFragment();
+      for (const id of ids) {
+        const option = document.createElement("option");
+        option.value = id;
+        fragment.appendChild(option);
+      }
+      byId("model-options").replaceChildren(fragment);
+      const reportedCount = Array.isArray(modelIds) ? modelIds.length : 0;
+      const localEndpoint = /^https?:\\/\\/(127(?:\\.\\d+){3}|localhost|\\[::1\\])(?::|\\/|$)/i.test(baseURL);
+      byId("model-help").textContent = reportedCount > 0
+        ? reportedCount + (localEndpoint ? " downloaded models reported by the local endpoint. " : " models reported by the endpoint. ") + "Select one or enter another ID; FIM format must match."
+        : "No model list reported. Enter a model ID manually; FIM format must match.";
     }
 
     function render(state) {
@@ -191,11 +224,14 @@ export function panelHtml(cspSource: string, nonce: string, logoUri: string): st
       byId("autocomplete-state").textContent = state.autocomplete.message;
       byId("settings-message").textContent = state.notice;
       byId("logs").textContent = state.logs || "No Reticle activity yet.";
-      for (const key of ["baseURL", "model", "fimFormat", "temperature", "maxTokens", "maxLines", "debounceMs"]) {
-        byId(key).value = String(state.settings[key]);
+      renderModelOptions(state.availableModels, state.settings.model, state.settings.baseURL);
+      if (!formDirty) {
+        for (const key of ["baseURL", "model", "fimFormat", "temperature", "maxTokens", "maxLines", "debounceMs"]) {
+          byId(key).value = String(state.settings[key]);
+        }
+        byId("enableAutoTrigger").checked = state.settings.enableAutoTrigger;
+        byId("multiFileContext").checked = state.settings.multiFileContext;
       }
-      byId("enableAutoTrigger").checked = state.settings.enableAutoTrigger;
-      byId("multiFileContext").checked = state.settings.multiFileContext;
       setBusy(state.busy);
     }
 
@@ -208,21 +244,26 @@ export function panelHtml(cspSource: string, nonce: string, logoUri: string): st
     byId("copy-logs").addEventListener("click", () => vscode.postMessage({ type: "copyLogs" }));
     byId("clear-logs").addEventListener("click", () => vscode.postMessage({ type: "clearLogs" }));
     byId("open-output").addEventListener("click", () => vscode.postMessage({ type: "openOutput" }));
+    byId("settings-form").addEventListener("input", () => {
+      formDirty = true;
+    });
     byId("settings-form").addEventListener("submit", (event) => {
       event.preventDefault();
+      const settings = {
+        baseURL: byId("baseURL").value,
+        model: byId("model").value,
+        fimFormat: byId("fimFormat").value,
+        temperature: byId("temperature").valueAsNumber,
+        maxTokens: byId("maxTokens").valueAsNumber,
+        maxLines: byId("maxLines").valueAsNumber,
+        debounceMs: byId("debounceMs").valueAsNumber,
+        enableAutoTrigger: byId("enableAutoTrigger").checked,
+        multiFileContext: byId("multiFileContext").checked
+      };
+      formDirty = false;
       vscode.postMessage({
         type: "saveSettings",
-        settings: {
-          baseURL: byId("baseURL").value,
-          model: byId("model").value,
-          fimFormat: byId("fimFormat").value,
-          temperature: byId("temperature").valueAsNumber,
-          maxTokens: byId("maxTokens").valueAsNumber,
-          maxLines: byId("maxLines").valueAsNumber,
-          debounceMs: byId("debounceMs").valueAsNumber,
-          enableAutoTrigger: byId("enableAutoTrigger").checked,
-          multiFileContext: byId("multiFileContext").checked
-        }
+        settings
       });
     });
     vscode.postMessage({ type: "ready" });
