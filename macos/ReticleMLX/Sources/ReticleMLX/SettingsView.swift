@@ -38,6 +38,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
+  static let activityDefaultHeight: CGFloat = 240
+
   @ObservedObject var controller: ServiceController
   @ObservedObject private var downloads: ModelDownloadController
   @StateObject private var benchmarks: BenchmarkController
@@ -133,7 +135,11 @@ struct SettingsView: View {
       activitySection
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .frame(minHeight: 92, idealHeight: 120, maxHeight: .infinity)
+        .frame(
+          minHeight: 92,
+          idealHeight: Self.activityDefaultHeight,
+          maxHeight: .infinity
+        )
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .accessibilityIdentifier("settings.activity-split")

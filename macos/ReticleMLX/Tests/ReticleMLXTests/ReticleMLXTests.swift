@@ -223,6 +223,10 @@ final class ReticleMLXTests: XCTestCase {
     )
   }
 
+  func testActivityPaneDefaultsToTwiceItsPreviousHeight() {
+    XCTAssertEqual(SettingsView.activityDefaultHeight, 240)
+  }
+
   func testSparkleRequiresHTTPSFeedAndPublicKey() {
     XCTAssertFalse(SparkleUpdater.isConfigured(feedURL: nil, publicKey: nil))
     XCTAssertFalse(

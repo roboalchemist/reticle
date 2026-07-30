@@ -1,5 +1,12 @@
 # Worklog
 
+## 2026-07-29 — Taller default Activity pane
+
+- Doubled the draggable Activity pane's preferred starting height from 120 to
+  240 points, while preserving the existing minimum sizes and unbounded manual
+  resizing for both panes.
+- Kept the layout value explicit and covered it with a Swift regression test.
+
 ## 2026-07-29 — macOS 26 demand-start after bootstrap
 
 - Diagnosed vmac's loaded-but-never-run LaunchAgent directly: launchd reported
