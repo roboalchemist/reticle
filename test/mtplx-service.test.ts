@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -93,6 +101,61 @@ printf '%s\\n' 'last exit code = (never exited)'
     expect(result.stdout).toContain("state = running");
     expect(result.stdout).toContain("pid = 123");
     expect(result.stdout).toContain("health: unavailable");
+  });
+
+  it("demand-starts a freshly bootstrapped LaunchAgent", () => {
+    const home = mkdtempSync(join(tmpdir(), "reticle-mtplx-start-"));
+    temporaryDirectories.push(home);
+    const bin = join(home, "bin");
+    const launchAgents = join(home, "Library", "LaunchAgents");
+    const launchctlState = join(home, "launchctl.state");
+    const launchctlLog = join(home, "launchctl.log");
+    mkdirSync(bin, { recursive: true });
+    mkdirSync(launchAgents, { recursive: true });
+    writeFileSync(
+      join(launchAgents, "io.github.roboalchemist.reticle.mtplx.plist"),
+      "<plist><dict/></plist>\n",
+    );
+    writeExecutable(
+      join(bin, "launchctl"),
+      `#!/bin/sh
+case "$1" in
+  print) test -f "$MOCK_LAUNCHCTL_STATE" ;;
+  bootstrap)
+    touch "$MOCK_LAUNCHCTL_STATE"
+    printf '%s\\n' bootstrap >>"$MOCK_LAUNCHCTL_LOG"
+    ;;
+  kickstart)
+    test -f "$MOCK_LAUNCHCTL_STATE"
+    printf '%s\\n' kickstart >>"$MOCK_LAUNCHCTL_LOG"
+    ;;
+  *) exit 2 ;;
+esac
+`,
+    );
+    writeExecutable(join(bin, "curl"), "#!/bin/sh\nprintf '%s\\n' '{\"ok\":true}'\n");
+
+    const result = spawnSync(join(process.cwd(), "scripts", "mtplx-service"), ["start"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOME: home,
+        PATH: `${bin}:/usr/bin:/bin`,
+        MOCK_LAUNCHCTL_STATE: launchctlState,
+        MOCK_LAUNCHCTL_LOG: launchctlLog,
+        MTPLX_MODEL: "example/model",
+        MTPLX_PORT: "8000",
+        MTPLX_PROFILE: "sustained",
+        MTPLX_CONTEXT_WINDOW: "16384",
+        MTPLX_KV_QUANTIZATION: "q4",
+        MTPLX_SKIP_FIM_WARMUP: "1",
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("MTPLX is healthy");
+    expect(readFileSync(launchctlLog, "utf8")).toBe("bootstrap\nkickstart\n");
   });
 
   it("diagnoses the installed custom service and verifies real FIM behavior", () => {

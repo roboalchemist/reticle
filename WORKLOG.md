@@ -1,5 +1,17 @@
 # Worklog
 
+## 2026-07-29 — macOS 26 demand-start after bootstrap
+
+- Diagnosed vmac's loaded-but-never-run LaunchAgent directly: launchd reported
+  `runs = 0` and `pended nondemand spawn = speculative`, while every executable
+  path and permission was valid and no service log existed.
+- Confirmed an explicit `launchctl kickstart` immediately created the process,
+  loaded Seed-Coder, and restored health. macOS 26.5 had accepted the fresh
+  bootstrap but deferred its RunAtLoad spawn indefinitely.
+- Demand-start both MLX-LM and MTPLX after every bootstrap, with regression
+  fixtures proving the first-start sequence is `bootstrap` followed by
+  `kickstart`.
+
 ## 2026-07-29 — Distinct starting and unhealthy states
 
 - Replaced the ambiguous `Starting or unhealthy` service state with separate
