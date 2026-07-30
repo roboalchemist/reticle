@@ -38,13 +38,14 @@ multi-line edit. Press `Tab` once to accept the suggestion.
 
 The project has two primary parts:
 
-- **Reticle MLX** is the native menu-bar app for running, switching,
-  benchmarking, and monitoring completion models on an Apple Silicon Mac.
 - **Reticle** is the VS Code extension that connects your editor to Reticle MLX
   or another compatible `POST /v1/completions` endpoint.
+- **Reticle MLX** is the native menu-bar app for running, switching,
+  benchmarking, and monitoring completion models on an Apple Silicon Mac.
 
-There is no hosted Reticle account and no telemetry. With Reticle MLX, model
-traffic stays on your Mac over a loopback-only service.
+With Reticle MLX, model traffic stays entirely local on your Mac. There is no
+hosted Reticle account or telemetry. Aside from model downloads you initiate,
+Reticle MLX's only internet use is Sparkle's minimal update check.
 
 ## Choose your setup
 
@@ -111,17 +112,6 @@ The panel also exposes autocomplete state and live extension logs. Advanced
 options remain available through **Open all settings**.
 
 [Read the configuration guide →](docs/configuration.md)
-
-## What you get
-
-| Reticle MLX for macOS                             | Reticle for VS Code                                          |
-| ------------------------------------------------- | ------------------------------------------------------------ |
-| Downloaded-model catalog with one-click selection | Automatic single- and multi-line ghost text                  |
-| MLX-LM and MTPLX runtime management               | Whole-suggestion acceptance with one `Tab`                   |
-| Starting/healthy/unhealthy service states         | Manual completion with `Option+\` on macOS                   |
-| Cold, warm, TTFT, and throughput benchmarks       | OpenAI, Qwen, Seed-Coder, and Codestral FIM transports       |
-| Resizable activity and copyable/exportable logs   | Endpoint health, downloaded-model picker, settings, and logs |
-| Signed Sparkle updates and launch-at-login        | Optional multi-file context with explicit privacy controls   |
 
 ## Provider and setup guides
 

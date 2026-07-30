@@ -1,5 +1,15 @@
 # Worklog
 
+## 2026-07-30 — README hierarchy and privacy follow-up
+
+- Put the Reticle VS Code extension before the optional Reticle MLX companion
+  in the product introduction.
+- Removed the comparison-style “What you get” section so the landing page stays
+  focused on the two installation paths.
+- Clarified that model traffic remains entirely local, while identifying the
+  minimal Sparkle update check as the app's only background internet call and
+  model downloads as user-initiated.
+
 ## 2026-07-30 — README and guide consolidation
 
 - Reframed the public README around the two primary user paths: the complete
