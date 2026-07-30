@@ -7,269 +7,185 @@
 <p align="center">
   <strong>Fast, private code completion on your own endpoint.</strong>
   <br>
-  Local-first FIM ghost text for VS Code—with multi-line suggestions, no hosted account, and no telemetry.
+  A native Apple Silicon model app and a local-first VS Code extension, designed to work together.
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=roboalchemist.reticle"><img alt="VS Code Marketplace version" src="https://img.shields.io/visual-studio-marketplace/v/roboalchemist.reticle?label=VS%20Code&color=6574f7"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=roboalchemist.reticle"><img alt="VS Code Marketplace version" src="https://img.shields.io/github/v/release/roboalchemist/reticle-mlx?label=VS%20Code&color=6574f7"></a>
   <a href="https://open-vsx.org/extension/roboalchemist/reticle"><img alt="Open VSX version" src="https://img.shields.io/open-vsx/v/roboalchemist/reticle?label=Open%20VSX&color=6574f7"></a>
   <a href="https://github.com/roboalchemist/reticle-mlx/actions/workflows/ci.yml"><img alt="Build status" src="https://github.com/roboalchemist/reticle-mlx/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-ff7869"></a>
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=roboalchemist.reticle"><strong>Install</strong></a>
+  <a href="#choose-your-setup"><strong>Get started</strong></a>
   ·
-  <a href="#reticle-mlx-for-macos">Reticle MLX for macOS</a>
+  <a href="#easiest-setup-reticle-mlx--vs-code">Mac app + extension</a>
   ·
-  <a href="#quick-start-with-mtplx">MTPLX quick start</a>
+  <a href="#use-the-vs-code-extension-with-an-existing-endpoint">Extension only</a>
   ·
-  <a href="#provider-guides">Provider guides</a>
+  <a href="#provider-and-setup-guides">Provider guides</a>
   ·
-  <a href="#configuration">Configuration</a>
+  <a href="#documentation">Documentation</a>
 </p>
 
 ---
 
-Reticle connects VS Code directly to an OpenAI-compatible `POST /v1/completions` endpoint. It uses true fill-in-the-middle context to suggest an identifier, a line, or a bounded multi-line block at the cursor.
+Reticle provides true fill-in-the-middle (FIM) ghost text in VS Code. It sends
+the code before and after your cursor to an OpenAI-compatible completion
+endpoint, then offers anything from a single identifier to a bounded
+multi-line edit. Press `Tab` once to accept the suggestion.
 
-|                               |                                                                                         |
-| ----------------------------- | --------------------------------------------------------------------------------------- |
-| **Local and BYOK**            | Use MLX-LM, MTPLX, Ollama, llama.cpp, LM Studio, or a compatible remote endpoint.       |
-| **True fill-in-the-middle**   | Sends both the code before and after the cursor instead of prompting a chat model.      |
-| **Multi-line with one `Tab`** | Accept an entire bounded block while keeping indentation and suffix overlap intact.     |
-| **Small and observable**      | No hosted account or telemetry; inspect your endpoint, service health, logs, and usage. |
+The project has two primary parts:
 
-The selected model must actually support FIM. Reticle can send a separate OpenAI `suffix`, embed Qwen PSM special tokens, or serialize Seed-Coder's native SPM format for plain-completion servers. Chat-only models are not compatible even when their server implements an OpenAI-shaped API.
+- **Reticle MLX** is the native menu-bar app for running, switching,
+  benchmarking, and monitoring completion models on an Apple Silicon Mac.
+- **Reticle** is the VS Code extension that connects your editor to Reticle MLX
+  or another compatible `POST /v1/completions` endpoint.
 
-## Install
+There is no hosted Reticle account and no telemetry. With Reticle MLX, model
+traffic stays on your Mac over a loopback-only service.
 
-Install `roboalchemist.reticle` from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=roboalchemist.reticle) or [Open VSX](https://open-vsx.org/extension/roboalchemist/reticle):
+## Choose your setup
+
+| If you…                                                      | Start here                                                                          |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Use an Apple Silicon Mac and want the easiest complete setup | Install **Reticle MLX**, then let the app install and verify the VS Code extension. |
+| Already run a compatible local or hosted completion endpoint | Install the **Reticle VS Code extension** and connect it to that endpoint.          |
+
+## Easiest setup: Reticle MLX + VS Code
+
+Reticle MLX is the recommended path for Apple Silicon MacBooks and desktops. It
+handles the model runtime, downloads, service lifecycle, logs, health checks,
+benchmarking, and VS Code setup without requiring a terminal after
+installation.
+
+1. Install and open the signed, notarized Mac app:
+
+   ```bash
+   brew install --cask roboalchemist/tap/reticle-mlx
+   open -g -a "Reticle MLX"
+   ```
+
+   You can also download the DMG or ZIP from the
+   [latest GitHub release](https://github.com/roboalchemist/reticle-mlx/releases/latest).
+
+2. Open **Settings… → Models**, download a model, and click **Select**. The
+   recommended model appears first; lighter, faster, and larger alternatives
+   are listed below it.
+
+3. Open **VS Code Setup**, click **Install VS Code Extension**, then run
+   **VS Code Doctor**. The doctor verifies the installed extension, endpoint,
+   selected model, FIM format, and a real suffix-dependent completion.
+
+4. Open a code file in VS Code and start typing. Reticle suggests automatically;
+   press `Tab` to accept. Use `Option+\` to request a suggestion immediately.
+
+The menu-bar app distinguishes starting, healthy, stopped, and unhealthy
+services. Its settings include model downloads and selection, a custom-model
+path, performance benchmarks, VS Code integration, copyable/exportable logs,
+and launch-at-login.
+
+[Read the complete Reticle MLX guide →](docs/providers/mlx.md)
+
+## Use the VS Code extension with an existing endpoint
+
+If you already have a compatible endpoint, install the extension directly:
 
 ```bash
 code --install-extension roboalchemist.reticle
 ```
 
-For an offline install, download the VSIX from the [latest GitHub release](https://github.com/roboalchemist/reticle-mlx/releases/latest), then run **Extensions: Install from VSIX...** in VS Code.
+It is also available from
+[Open VSX](https://open-vsx.org/extension/roboalchemist/reticle) and as a VSIX
+on the [latest GitHub release](https://github.com/roboalchemist/reticle-mlx/releases/latest).
 
-## Reticle MLX for macOS
+Open the Reticle target in the VS Code Activity Bar, then:
 
-Reticle MLX is the native menu-bar companion for Apple Silicon. It installs,
-starts, stops, monitors, and switches local completion models without keeping a
-terminal open. It uses MLX-LM for general FIM models and MTPLX for the verified
-speculative Qwen 3.5 model. The app is Developer ID signed, hardened, notarized
-by Apple, and distributed from the
-[latest GitHub release](https://github.com/roboalchemist/reticle-mlx/releases/latest).
+1. Enter the endpoint base URL.
+2. Choose a model reported by `/v1/models`, or enter its ID manually.
+3. Select the matching FIM format.
+4. Save, click **Check health**, and use **Try in editor**.
 
-```bash
-brew install --cask roboalchemist/tap/reticle-mlx
-open -g -a "Reticle MLX"
-```
+The panel also exposes autocomplete state and live extension logs. Advanced
+options remain available through **Open all settings**.
 
-Open **Settings…** from the menu-bar sparkle. The resizable settings window
-opens on **General** and keeps **Models**, **Custom Model**, **Benchmark**, **VS
-Code Setup**, and **Logs** in a permanently visible sidebar. The draggable
-Activity split can be enlarged on every tab. The scrollable model list ranks the
-recommended model first and shows download size, minimum memory, runtime, and
-relative quality/speed/memory scores:
+[Read the configuration guide →](docs/configuration.md)
 
-- **Seed-Coder 8B:** best quality in Reticle's tested completion set;
-- **Zeta 7B:** Zed's edit-prediction fine-tune, optimized here as a 4-bit MLX
-  model for responsive cursor-local suggestions;
-- **Qwen2.5-Coder 1.5B:** fastest and lightest;
-- **Qwen2.5-Coder 3B:** balanced speed and quality;
-- **Qwen3.5 9B MTPLX:** speculative low-latency completion;
-- **Codestral 22B:** the large FIM-native option for high-memory Macs.
+## What you get
 
-Each card has separate **Download** and **Select** actions. Downloads report
-exact byte progress and can be paused, resumed, or cancelled without discarding
-completed files. Click **Apply & Restart**, then use **Install VS Code
-Extension** and **VS Code Doctor**. The app keeps the selected service
-loopback-only, shows health in the menu bar, exposes logs and a real
-suffix-dependent doctor, and can start at login.
+| Reticle MLX for macOS                             | Reticle for VS Code                                          |
+| ------------------------------------------------- | ------------------------------------------------------------ |
+| Downloaded-model catalog with one-click selection | Automatic single- and multi-line ghost text                  |
+| MLX-LM and MTPLX runtime management               | Whole-suggestion acceptance with one `Tab`                   |
+| Starting/healthy/unhealthy service states         | Manual completion with `Option+\` on macOS                   |
+| Cold, warm, TTFT, and throughput benchmarks       | OpenAI, Qwen, Seed-Coder, and Codestral FIM transports       |
+| Resizable activity and copyable/exportable logs   | Endpoint health, downloaded-model picker, settings, and logs |
+| Signed Sparkle updates and launch-at-login        | Optional multi-file context with explicit privacy controls   |
 
-The **Benchmark** tab can start any downloaded preset and records streaming
-time-to-first-token, cold end-to-end latency, the median of three warm
-prompt-cache requests, and completion throughput. Results accumulate across
-models and can be copied as tab-separated text or exported as TSV. The **Logs**
-tab tails the active runtime's stdout/stderr with one-click copy and export.
+## Provider and setup guides
 
-The same manager is available headlessly:
+Reticle MLX is the easiest Mac setup, but the extension can use any compatible
+provider:
 
-```bash
-brew install roboalchemist/tap/reticle-mlx
-reticle-mlx install
-reticle-mlx doctor
-reticle-mlx monitor
-```
+- [Reticle MLX](docs/providers/mlx.md)
+- [MTPLX](docs/providers/mtplx.md)
+- [Ollama](docs/providers/ollama.md)
+- [llama.cpp](docs/providers/llama-cpp.md)
+- [OMLX](docs/providers/omlx.md)
+- [LM Studio](docs/providers/lm-studio.md)
+- [Remote hosted endpoint](docs/providers/remote.md)
 
-See the [complete Reticle MLX guide](docs/providers/mlx.md) for model presets,
-download storage, the MLX-LM/MTPLX split, measured performance, migration, and
-lifecycle commands.
+A server can return HTTP 200 while ignoring the suffix or wrapping the answer
+in chat prose. Verify the exact model and server together before relying on it:
 
-## Quick start with MTPLX
+[Run model compatibility testing →](docs/model-compatibility.md#model-compatibility-testing)
 
-On an Apple Silicon Mac with at least 16 GB of unified memory:
+## How completion works
 
-```bash
-brew install roboalchemist/tap/reticle-mtplx
-reticle-mtplx install
-reticle-mtplx status
-```
+Reticle connects directly to an OpenAI-compatible `POST /v1/completions`
+endpoint. Depending on the selected transport, it sends a separate OpenAI
+`suffix`, Qwen prefix-suffix-middle markers, Seed-Coder's
+suffix-prefix-middle format, or Codestral FIM tokens.
 
-Then configure VS Code:
+Chat-only models are not compatible merely because their server exposes an
+OpenAI-shaped API. A compatible model must produce a clean insertion that
+respects both sides of the cursor.
 
-```jsonc
-{
-  "reticle.baseURL": "http://127.0.0.1:8000/v1",
-  "reticle.model": "mtplx-qwen35-9b-optimized-speed",
-  "reticle.fimFormat": "qwen",
-  "reticle.maxLines": 8,
-  "reticle.maxTokens": 64,
-}
-```
+Suggestions trigger after a short typing pause. After you accept one, Reticle
+waits for your next edit before automatically suggesting again. To validate
+Reticle by itself, temporarily disable other inline-completion extensions so
+their ghost text is not mistaken for Reticle's.
 
-Run **Reticle: Test Autocomplete Endpoint**. See the [complete MTPLX guide](docs/providers/mtplx.md) for monitoring, logs, dashboard, restart, custom models, and uninstall.
+## Documentation
 
-## Quick start with Ollama
-
-1. Install [Ollama](https://ollama.com/download), then pull the FIM-trained **Base** checkpoint:
-
-   ```bash
-   ollama pull qwen2.5-coder:1.5b-base
-   ollama serve
-   ```
-
-2. Verify the model/server pair before configuring Reticle:
-
-   ```bash
-   curl --silent --show-error http://127.0.0.1:11434/v1/completions \
-     -H 'Content-Type: application/json' \
-     -d '{
-       "model": "qwen2.5-coder:1.5b-base",
-       "prompt": "function add(a, b) {\n  return ",
-       "suffix": "\n}\n",
-       "max_tokens": 32,
-       "temperature": 0,
-       "stream": false
-     }'
-   ```
-
-   `choices[0].text` should be a bare insertion such as `a + b`, without a rewritten function, explanation, or Markdown fence.
-
-3. Install the Reticle VSIX, open VS Code Settings, and set:
-
-   ```jsonc
-   {
-     "reticle.baseURL": "http://127.0.0.1:11434/v1",
-     "reticle.model": "qwen2.5-coder:1.5b-base",
-   }
-   ```
-
-4. Open the Reticle target icon in the Activity Bar. The control panel shows
-   live endpoint health, editable core settings, an active-editor completion
-   trigger, and the extension log stream in one place. Its model field lists
-   models the endpoint reports as available while preserving manual model IDs;
-   Reticle MLX reports only locally downloaded MLX models. Choose the matching
-   FIM format before saving. You can also run
-   **Reticle: Test Autocomplete Endpoint** from the Command Palette for the
-   fixed suffix-dependent compatibility diagnostic.
-5. Type after `return ` in a source file. Reticle shows ghost text; press `Tab`
-   to accept the entire single- or multi-line suggestion. Suggestions trigger
-   automatically after a short typing pause. After acceptance, Reticle waits
-   for your next edit before automatically suggesting again. To force one
-   immediately, press `Option+\` on macOS or `Ctrl+Alt+Space` elsewhere.
-
-Disable other inline-completion extensions while validating so their ghost text is not mistaken for Reticle's.
-
-## The compatibility litmus
-
-Use the same request with every provider, changing only the URL, model ID, and optional authorization header:
-
-```bash
-curl --silent --show-error https://HOST/v1/completions \
-  -H 'Content-Type: application/json' \
-  -H "Authorization: Bearer $API_KEY" \
-  -d '{
-    "model": "MODEL_ID",
-    "prompt": "function add(a, b) {\n  return ",
-    "suffix": "\n}\n",
-    "max_tokens": 32,
-    "temperature": 0,
-    "stream": false
-  }'
-```
-
-Compatible output has a `choices[0].text` insertion like `a + b`. Once that passes, repeat with `"stream": true`; Reticle uses the streaming path. A server may accept `suffix` while silently ignoring it, so an HTTP 200 alone proves nothing.
-
-## Configuration
-
-| Setting                     |                    Default | Purpose                                                                                         |
-| --------------------------- | -------------------------: | ----------------------------------------------------------------------------------------------- |
-| `reticle.baseURL`           | `http://127.0.0.1:8001/v1` | OpenAI-compatible base URL. Reticle appends `/completions`.                                     |
-| `reticle.model`             |                      empty | Exact model ID from the server's `/v1/models` response.                                         |
-| `reticle.apiKey`            |                      empty | Optional on loopback; required for remote endpoints.                                            |
-| `reticle.extraHeaders`      |                       `{}` | Additional string-valued request headers.                                                       |
-| `reticle.fimFormat`         |                   `openai` | `openai` sends a separate suffix; `codestral`, `qwen`, and `seed` embed native FIM markers.     |
-| `reticle.maxLines`          |                        `8` | Maximum lines displayed in one inline completion (1–64).                                        |
-| `reticle.maxTokens`         |                      `256` | Maximum generated tokens (1–2048).                                                              |
-| `reticle.temperature`       |                        `0` | Sampling temperature (0–2).                                                                     |
-| `reticle.debounceMs`        |                      `100` | Automatic-request delay (75–150 ms).                                                            |
-| `reticle.enableAutoTrigger` |                     `true` | Enables automatic suggestions.                                                                  |
-| `reticle.multiFileContext`  |                    `false` | Opt-in context from relevant files in the same workspace. This sends more code to the endpoint. |
-| `reticle.languageAllowlist` |                       `[]` | When non-empty, only listed VS Code language IDs are enabled.                                   |
-| `reticle.languageDenylist`  |                       `[]` | Language IDs to disable; deny takes precedence.                                                 |
-
-Reticle requires HTTPS and an API key for non-loopback endpoints. It never logs response bodies from HTTP errors, because providers can reflect credentials or request content.
-
-## Provider guides
-
-- [Ollama](docs/providers/ollama.md) — recommended first setup; its OpenAI compatibility documents `suffix`.
-- [Reticle MLX](docs/providers/mlx.md) — signed macOS menu-bar app and hybrid MLX-LM/MTPLX model manager.
-- [MTPLX](docs/providers/mtplx.md) — managed Apple Silicon service with health, metrics, dashboard, and Qwen PSM transport.
-- [llama.cpp](docs/providers/llama-cpp.md) — excellent FIM runtime, with an important `/infill` versus `/v1/completions` caveat.
-- [OMLX](docs/providers/omlx.md) — Apple Silicon serving and the archive's fastest Mac-local model result.
-- [LM Studio](docs/providers/lm-studio.md) — GUI/headless local server; verify suffix mapping for the exact version and model.
-- [Remote hosted provider](docs/providers/remote.md) — HTTPS, key handling, and suffix-support checks.
-
-See the evidence-based [model compatibility table](docs/model-compatibility.md) before choosing a checkpoint.
+- [Configuration](docs/configuration.md)
+- [Provider setup](docs/providers/README.md)
+- [Model compatibility testing and validated models](docs/model-compatibility.md)
+- [Reticle MLX for macOS](docs/providers/mlx.md)
+- [Development](docs/development.md)
+- [Releasing](docs/releasing.md)
+- [Changelog](CHANGELOG.md)
 
 ## Troubleshooting
 
-- **Prose, an explanation, or fenced Markdown:** the model is behaving as chat, not FIM. Select a Base/FIM checkpoint and rerun the litmus. Fence stripping cannot make a model suffix-aware.
-- **The model repeats or rewrites the suffix:** the server ignored `suffix` or used the wrong FIM serialization. This model/server pair is not compatible through Reticle's transport.
-- **Empty output:** verify the exact model ID with `GET /v1/models`, inspect server logs, increase `reticle.maxTokens`, and rerun the non-streaming probe.
-- **Remote configuration error:** use an `https://` base URL and set `reticle.apiKey`. Reticle intentionally rejects insecure remote HTTP.
-- **Suggestions are slow only on the first edit:** cold prompt prefill can take seconds. Keep the model loaded; cache-aware servers benefit from Reticle's stable per-model/per-document session header.
-- **No suggestion in one language:** check the allowlist and denylist. The denylist wins.
-- **Wrong extension's suggestion appears:** temporarily disable Copilot and other inline-completion extensions.
+- **Prose, explanations, or fenced Markdown:** use a Base/FIM checkpoint and
+  run model compatibility testing. Post-processing cannot make a model
+  suffix-aware.
+- **Repeated or rewritten suffix:** the server ignored the suffix or used the
+  wrong FIM serialization.
+- **Empty output:** confirm the exact ID through `/v1/models`, inspect the
+  provider logs, and increase `reticle.maxTokens`.
+- **Remote configuration error:** use HTTPS and provide an API key. Reticle
+  intentionally rejects insecure remote HTTP.
+- **Slow first suggestion:** cold model loading and prompt prefill can take
+  seconds; subsequent cache-aware requests should be faster.
+- **No suggestion in one language:** check the language allowlist and denylist.
 
-## Development
-
-```bash
-npm ci
-npm run compile
-npm test
-npm run lint
-```
-
-The live integration test is explicit and loopback-only:
-
-```bash
-RETICLE_INTEGRATION=1 \
-RETICLE_INTEGRATION_MODEL=roboalchemist/Seed-Coder-8B-Base-MLX-mixed-3-4 \
-RETICLE_INTEGRATION_FIM_FORMAT=seed \
-npm run test:integration
-```
-
-Run the same live path inside a real VS Code Extension Development Host:
-
-```bash
-RETICLE_E2E_LIVE=1 \
-RETICLE_INTEGRATION_MODEL=mtplx-qwen35-9b-optimized-speed \
-npm run test:e2e
-```
+See the [configuration guide](docs/configuration.md) and the selected
+[provider guide](docs/providers/README.md) for detailed diagnostics.
 
 ## License
 
-MIT. The optional context engine is an original lightweight implementation; no third-party context-retrieval code is vendored.
+MIT. The optional context engine is an original lightweight implementation; no
+third-party context-retrieval code is vendored.

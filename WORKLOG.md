@@ -1,5 +1,22 @@
 # Worklog
 
+## 2026-07-30 — README and guide consolidation
+
+- Reframed the public README around the two primary user paths: the complete
+  Reticle MLX + VS Code setup on Apple Silicon, and the standalone VS Code
+  extension for an existing compatible endpoint.
+- Removed the long inline MTPLX, Ollama, compatibility, configuration, and
+  development walkthroughs from the landing page. Alternative runtimes now
+  link directly to provider guides.
+- Moved the complete settings reference, examples, privacy behavior, and
+  keyboard workflow into `docs/configuration.md`, and moved extension/macOS
+  build and test instructions into `docs/development.md`.
+- Renamed the compatibility litmus as model compatibility testing and placed
+  the raw and extension-driven tests beside the validated-model evidence.
+- Replaced Shields.io's retired Visual Studio Marketplace badge with the
+  shared GitHub release version badge; the extension and native app use the
+  same release version.
+
 ## 2026-07-29 — Endpoint-backed model picker
 
 - Reused the panel health request to parse the standard OpenAI-compatible
