@@ -168,7 +168,10 @@ Run **Reticle: Test Autocomplete Endpoint**. See the [complete MTPLX guide](docs
 
 4. Open the Reticle target icon in the Activity Bar. The control panel shows
    live endpoint health, editable core settings, an active-editor completion
-   trigger, and the extension log stream in one place. You can also run
+   trigger, and the extension log stream in one place. Its model field lists
+   models the endpoint reports as available while preserving manual model IDs;
+   Reticle MLX reports only locally downloaded MLX models. Choose the matching
+   FIM format before saving. You can also run
    **Reticle: Test Autocomplete Endpoint** from the Command Palette for the
    fixed suffix-dependent compatibility diagnostic.
 5. Type after `return ` in a source file. Reticle shows ghost text; press `Tab`

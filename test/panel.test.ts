@@ -81,6 +81,10 @@ describe("Reticle control panel", () => {
     expect(html).toContain("script-src 'nonce-nonce-value'");
     expect(html).toContain('src="vscode-webview://panel/media/icon.svg"');
     expect(html).toContain('class="settings-actions"');
+    expect(html).toContain('list="model-options"');
+    expect(html).toContain('id="model-options"');
+    expect(html).toContain("downloaded models reported by the local endpoint");
+    expect(html).toContain('document.createElement("option")');
     expect(html).toContain("label.check input { flex: none; margin: 0; width: auto; }");
     expect(html.indexOf('id="health-badge"')).toBeLessThan(html.indexOf('id="check-health"'));
     for (const id of [

@@ -27,6 +27,7 @@ type HealthState = "checking" | "healthy" | "unhealthy";
 
 interface PanelState {
   autocomplete: { message: string; status: ReticleStatus };
+  availableModels: string[];
   busy: boolean;
   health: { message: string; status: HealthState };
   logs: string;
@@ -82,12 +83,14 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
     message: "Autocomplete enabled",
     status: "enabled",
   };
+  private availableModels: string[] = [];
   private busy = false;
   private health: PanelState["health"] = {
     message: "Waiting for endpoint check",
     status: "checking",
   };
   private notice = "";
+  private modelsBaseURL = "";
   private view?: vscode.WebviewView;
   private messageSubscription?: vscode.Disposable;
   private visibilitySubscription?: vscode.Disposable;
@@ -145,6 +148,16 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
 
   configurationChanged(): void {
     this.notice = "";
+    try {
+      const baseURL = this.settings().baseURL;
+      if (this.modelsBaseURL && baseURL !== this.modelsBaseURL) {
+        this.availableModels = [];
+        this.modelsBaseURL = "";
+      }
+    } catch {
+      this.availableModels = [];
+      this.modelsBaseURL = "";
+    }
     this.postState();
     if (this.view?.visible && !this.busy) {
       void this.checkHealth(false);
@@ -196,6 +209,7 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
     }
     return {
       autocomplete: this.autocomplete,
+      availableModels: this.availableModels,
       busy: this.busy,
       health: this.health,
       logs: this.logs.text(),
@@ -271,12 +285,16 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
       try {
         const result = await checkEndpointHealth(settings, { signal: controller.signal });
         this.health = { message: result.message, status: result.status };
+        this.availableModels = result.modelIds;
+        this.modelsBaseURL = settings.baseURL;
       } finally {
         clearTimeout(timeout);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.health = { message, status: "unhealthy" };
+      this.availableModels = [];
+      this.modelsBaseURL = "";
     } finally {
       this.busy = false;
       if (manual || previousStatus !== this.health.status) {
