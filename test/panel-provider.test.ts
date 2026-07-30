@@ -42,7 +42,8 @@ vi.mock("vscode", () => ({
   commands: { executeCommand: vscodeMock.executeCommand },
   ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
   env: { clipboard: { writeText: vscodeMock.clipboardWrite } },
-  window: { activeTextEditor: undefined },
+  Uri: { joinPath: () => ({ toString: () => "file:///extension/media/icon.svg" }) },
+  window: { activeTextEditor: { document: { uri: {} } } },
   workspace: { getConfiguration: () => vscodeMock.configuration },
 }));
 
@@ -77,17 +78,17 @@ describe("Reticle panel provider", () => {
       show: vi.fn(),
     };
     const logs = new ReticleLogStore(output);
-    const provider = new ReticlePanelProvider(logs);
+    const provider = new ReticlePanelProvider({} as never, logs);
     let receiveMessage: ((message: unknown) => void) | undefined;
     const postMessage = vi.fn<(message: unknown) => Promise<boolean>>(() => Promise.resolve(true));
     const postedStates = (): Array<{
-      state?: { health?: { status?: string }; probe?: { status?: string } };
+      state?: { health?: { status?: string } };
       type?: string;
     }> =>
       postMessage.mock.calls.map(
         ([message]) =>
           message as {
-            state?: { health?: { status?: string }; probe?: { status?: string } };
+            state?: { health?: { status?: string } };
             type?: string;
           },
       );
@@ -97,6 +98,9 @@ describe("Reticle panel provider", () => {
       webview: {
         cspSource: "vscode-webview://reticle",
         html: "",
+        asWebviewUri: vi.fn(() => ({
+          toString: () => "vscode-webview://reticle/media/icon.svg",
+        })),
         onDidReceiveMessage: vi.fn((callback: (message: unknown) => void) => {
           receiveMessage = callback;
           return { dispose: vi.fn() };
@@ -137,18 +141,19 @@ describe("Reticle panel provider", () => {
         expect(vscodeMock.configuration.update).toHaveBeenCalledWith("maxLines", 12, 1);
       });
 
-      receiveMessage?.({ type: "testCompletion" });
+      receiveMessage?.({ type: "triggerCompletion" });
       await vi.waitFor(() => {
-        expect(
-          postedStates().some(
-            (message) => message.type === "state" && message.state?.probe?.status === "passed",
-          ),
-        ).toBe(true);
+        expect(vscodeMock.executeCommand).toHaveBeenCalledWith(
+          "workbench.action.focusActiveEditorGroup",
+        );
+        expect(vscodeMock.executeCommand).toHaveBeenCalledWith("reticle.triggerCompletion");
       });
 
       receiveMessage?.({ type: "copyLogs" });
       await vi.waitFor(() => expect(vscodeMock.clipboardWrite).toHaveBeenCalledOnce());
-      expect(vscodeMock.clipboardWrite).toHaveBeenCalledWith(expect.stringContaining("[probe]"));
+      expect(vscodeMock.clipboardWrite).toHaveBeenCalledWith(
+        expect.stringContaining("[completion]"),
+      );
 
       receiveMessage?.({ type: "openOutput" });
       expect(output.show).toHaveBeenCalledWith(true);

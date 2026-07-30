@@ -3,7 +3,6 @@ import { randomBytes } from "node:crypto";
 import * as vscode from "vscode";
 
 import { checkEndpointHealth } from "../config/health.js";
-import { probeEndpoint } from "../config/probe.js";
 import {
   readSettings,
   SettingsError,
@@ -19,14 +18,12 @@ import {
   panelSettingsFrom,
   type PanelSettings,
 } from "./panelModel.js";
-import { probeVerdictMessage } from "./warnings.js";
 
 const VIEW_ID = "reticle.panel";
 const HEALTH_INTERVAL_MS = 15_000;
 const HEALTH_TIMEOUT_MS = 5_000;
 
 type HealthState = "checking" | "healthy" | "unhealthy";
-type ProbeState = "idle" | "running" | "passed" | "failed";
 
 interface PanelState {
   autocomplete: { message: string; status: ReticleStatus };
@@ -34,7 +31,6 @@ interface PanelState {
   health: { message: string; status: HealthState };
   logs: string;
   notice: string;
-  probe: { message: string; status: ProbeState };
   settings: PanelSettings;
 }
 
@@ -46,7 +42,7 @@ type PanelMessage =
   | { type: "openSettings" }
   | { type: "ready" }
   | { settings: unknown; type: "saveSettings" }
-  | { type: "testCompletion" };
+  | { type: "triggerCompletion" };
 
 function isPanelMessage(value: unknown): value is PanelMessage {
   if (!value || typeof value !== "object" || !("type" in value)) {
@@ -56,7 +52,7 @@ function isPanelMessage(value: unknown): value is PanelMessage {
   return (
     type === "ready" ||
     type === "checkHealth" ||
-    type === "testCompletion" ||
+    type === "triggerCompletion" ||
     type === "saveSettings" ||
     type === "openSettings" ||
     type === "copyLogs" ||
@@ -92,17 +88,16 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
     status: "checking",
   };
   private notice = "";
-  private probe: PanelState["probe"] = {
-    message: "Run the completion test to verify suffix-aware FIM output.",
-    status: "idle",
-  };
   private view?: vscode.WebviewView;
   private messageSubscription?: vscode.Disposable;
   private visibilitySubscription?: vscode.Disposable;
   private readonly logSubscription: { dispose(): void };
   private readonly healthTimer: ReturnType<typeof setInterval>;
 
-  constructor(private readonly logs: ReticleLogStore) {
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly logs: ReticleLogStore,
+  ) {
     this.logSubscription = logs.onDidChange(() => this.postState());
     this.healthTimer = setInterval(() => {
       if (this.view?.visible && !this.busy) {
@@ -116,9 +111,13 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
     this.visibilitySubscription?.dispose();
     this.view = webviewView;
     webviewView.webview.options = { enableScripts: true };
+    const logoUri = webviewView.webview
+      .asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "icon.svg"))
+      .toString();
     webviewView.webview.html = panelHtml(
       webviewView.webview.cspSource,
       randomBytes(16).toString("hex"),
+      logoUri,
     );
     this.messageSubscription = webviewView.webview.onDidReceiveMessage((message: unknown) => {
       void this.handleMessage(message);
@@ -201,7 +200,6 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
       health: this.health,
       logs: this.logs.text(),
       notice: this.notice,
-      probe: this.probe,
       settings,
     };
   }
@@ -226,8 +224,8 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
       case "checkHealth":
         await this.checkHealth(true);
         return;
-      case "testCompletion":
-        await this.testCompletion();
+      case "triggerCompletion":
+        await this.triggerCompletion();
         return;
       case "saveSettings":
         await this.saveSettings(value.settings);
@@ -288,41 +286,16 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
     }
   }
 
-  private async testCompletion(): Promise<void> {
-    if (this.busy) {
+  private async triggerCompletion(): Promise<void> {
+    if (!vscode.window.activeTextEditor) {
+      this.notice = "Open a code editor before trying a completion.";
+      this.logs.appendLine("[completion] No active editor is available.");
+      this.postState();
       return;
     }
-    this.busy = true;
-    this.probe = { message: "Running the suffix-dependent FIM probe…", status: "running" };
-    this.notice = "";
-    this.logs.appendLine("[probe] Starting panel completion test.");
-    this.postState();
-
-    try {
-      const result = await probeEndpoint(validateSettings(this.settings()));
-      const passed = result.classification === "insertion";
-      this.probe = {
-        message: probeVerdictMessage(result),
-        status: passed ? "passed" : "failed",
-      };
-      this.health = {
-        message: passed
-          ? `Completion endpoint reachable in ${result.elapsedMs} ms`
-          : "Endpoint reachable, but its completion is incompatible",
-        status: passed ? "healthy" : "unhealthy",
-      };
-      this.logs.appendLine(
-        `[probe] ${passed ? "passed" : `failed (${result.classification})`} in ${result.elapsedMs} ms.`,
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.probe = { message, status: "failed" };
-      this.health = { message, status: "unhealthy" };
-      this.logs.appendLine(`[probe] ${message}`);
-    } finally {
-      this.busy = false;
-      this.postState();
-    }
+    this.logs.appendLine("[completion] Triggering a suggestion in the active editor.");
+    await vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
+    await vscode.commands.executeCommand("reticle.triggerCompletion");
   }
 
   private async saveSettings(value: unknown): Promise<void> {

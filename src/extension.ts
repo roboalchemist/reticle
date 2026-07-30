@@ -26,7 +26,7 @@ export function activate(context: vscode.ExtensionContext): ReticleExtensionApi 
   const status = new StatusBarController(
     configuration.get<boolean>("enableAutoTrigger", true) ? "enabled" : "disabled",
   );
-  const panel = new ReticlePanelProvider(logs);
+  const panel = new ReticlePanelProvider(context.extensionUri, logs);
   const setStatus = (state: Parameters<StatusBarController["setState"]>[0], detail?: string) => {
     status.setState(state, detail);
     panel.setAutocompleteStatus(state, detail);

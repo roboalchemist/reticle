@@ -209,12 +209,9 @@ suite("Reticle extension host", () => {
   });
 
   test("opens the Reticle Activity Bar control panel", async () => {
-    await assert.doesNotReject(
-      async () => {
-        await vscode.commands.executeCommand("reticle.openPanel");
-      },
-      "the contributed Reticle view container must open",
-    );
+    await assert.doesNotReject(async () => {
+      await vscode.commands.executeCommand("reticle.openPanel");
+    }, "the contributed Reticle view container must open");
   });
 
   test("returns a suffix-dependent insertion from the configured live endpoint", async function () {

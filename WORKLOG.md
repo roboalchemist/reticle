@@ -3,8 +3,12 @@
 ## 2026-07-29 — VS Code control panel
 
 - Added a dedicated Reticle Activity Bar panel that combines lightweight
-  endpoint health, the existing suffix-dependent FIM completion probe, editable
-  core settings, autocomplete state, and a live bounded log stream.
+  endpoint health, an active-editor completion trigger, editable core settings,
+  autocomplete state, and a live bounded log stream. Keep the fixed
+  suffix-dependent FIM probe as the explicitly named compatibility diagnostic.
+- Show the measured health result inside its colored badge immediately before
+  the health button. Reuse the exact regular Reticle logo in the panel header,
+  keep both settings actions inline, and left-align native-width checkboxes.
 - Kept advanced/secret configuration in VS Code's native settings editor while
   making the common endpoint, model, FIM, generation, and trigger controls
   directly editable in the panel.

@@ -70,15 +70,23 @@ describe("Reticle control panel", () => {
     ).toThrow("reticle.maxTokens must be a number");
   });
 
-  it("renders health, settings, completion-test, and log controls under a CSP", () => {
-    const html = panelHtml("vscode-webview://panel", "nonce-value");
+  it("renders health, settings, editor completion, and log controls under a CSP", () => {
+    const html = panelHtml(
+      "vscode-webview://panel",
+      "nonce-value",
+      "vscode-webview://panel/media/icon.svg",
+    );
 
     expect(html).toContain("default-src 'none'");
     expect(html).toContain("script-src 'nonce-nonce-value'");
+    expect(html).toContain('src="vscode-webview://panel/media/icon.svg"');
+    expect(html).toContain('class="settings-actions"');
+    expect(html).toContain("label.check input { flex: none; margin: 0; width: auto; }");
+    expect(html.indexOf('id="health-badge"')).toBeLessThan(html.indexOf('id="check-health"'));
     for (const id of [
       "health-badge",
       "check-health",
-      "test-completion",
+      "trigger-completion",
       "settings-form",
       "open-settings",
       "copy-logs",

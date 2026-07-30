@@ -1,11 +1,11 @@
-export function panelHtml(cspSource: string, nonce: string): string {
+export function panelHtml(cspSource: string, nonce: string, logoUri: string): string {
   return /* html */ `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta
     http-equiv="Content-Security-Policy"
-    content="default-src 'none'; style-src ${cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}';"
+    content="default-src 'none'; img-src ${cspSource}; style-src ${cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}';"
   >
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style nonce="${nonce}">
@@ -21,7 +21,7 @@ export function panelHtml(cspSource: string, nonce: string): string {
     h2 { font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: .06em; }
     p { margin: 6px 0 0; color: var(--vscode-descriptionForeground); }
     .header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-    .mark { color: var(--vscode-textLink-foreground); font-size: 18px; }
+    .logo { border-radius: 7px; height: 32px; width: 32px; }
     .card {
       border: 1px solid var(--vscode-widget-border);
       background: var(--vscode-editorWidget-background);
@@ -35,7 +35,13 @@ export function panelHtml(cspSource: string, nonce: string): string {
     .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
     label { display: grid; gap: 4px; color: var(--vscode-descriptionForeground); font-size: 11px; }
     label.wide { grid-column: 1 / -1; }
-    label.check { display: flex; align-items: center; gap: 7px; }
+    label.check {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 7px;
+    }
+    label.check input { flex: none; margin: 0; width: auto; }
     input, select {
       box-sizing: border-box;
       width: 100%;
@@ -64,6 +70,15 @@ export function panelHtml(cspSource: string, nonce: string): string {
     button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
     button:disabled { cursor: default; opacity: .55; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .health-actions { align-items: center; }
+    .settings-actions {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .settings-actions button { width: 100%; }
     .badge {
       border-radius: 999px;
       font-size: 11px;
@@ -104,22 +119,18 @@ export function panelHtml(cspSource: string, nonce: string): string {
 </head>
 <body>
   <div class="header">
-    <span class="mark" aria-hidden="true">&lt;✦&gt;</span>
+    <img class="logo" src="${logoUri}" alt="">
     <div><h1>Reticle</h1><p>Local-first code completion</p></div>
   </div>
 
   <section class="card stack" aria-labelledby="health-heading">
-    <div class="row spread">
-      <h2 id="health-heading">Endpoint health</h2>
-      <span id="health-badge" class="badge" data-state="checking">Checking</span>
-    </div>
+    <h2 id="health-heading">Endpoint health</h2>
     <div id="endpoint" class="endpoint"></div>
-    <div id="health-message"></div>
-    <div class="actions">
+    <div class="actions health-actions">
+      <span id="health-badge" class="badge" data-state="checking">Checking…</span>
       <button id="check-health" type="button">Check health</button>
-      <button id="test-completion" type="button" class="secondary">Test completion</button>
+      <button id="trigger-completion" type="button" class="secondary">Try in editor</button>
     </div>
-    <div id="probe-result" class="notice" role="status"></div>
   </section>
 
   <section class="card" aria-labelledby="settings-heading">
@@ -144,7 +155,7 @@ export function panelHtml(cspSource: string, nonce: string): string {
       <label class="wide">Trigger delay (ms)<input id="debounceMs" type="number" min="75" max="150" step="1"></label>
       <label class="check wide"><input id="enableAutoTrigger" type="checkbox"> Automatic suggestions</label>
       <label class="check wide"><input id="multiFileContext" type="checkbox"> Include context from other open files</label>
-      <div class="actions wide">
+      <div class="settings-actions">
         <button id="save-settings" type="submit">Save settings</button>
         <button id="open-settings" type="button" class="secondary">Open all settings</button>
       </div>
@@ -165,25 +176,18 @@ export function panelHtml(cspSource: string, nonce: string): string {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const byId = (id) => document.getElementById(id);
-    let currentState;
-
     function setBusy(busy) {
-      for (const id of ["check-health", "test-completion", "save-settings"]) {
+      for (const id of ["check-health", "trigger-completion", "save-settings"]) {
         byId(id).disabled = busy;
       }
     }
 
     function render(state) {
-      currentState = state;
       const health = state.health;
       byId("health-badge").dataset.state = health.status;
       byId("health-badge").textContent =
-        health.status === "healthy" ? "Healthy" :
-        health.status === "unhealthy" ? "Unhealthy" : "Checking";
+        health.status === "checking" ? "Checking…" : health.message;
       byId("endpoint").textContent = state.settings.baseURL;
-      byId("health-message").textContent = health.message;
-      byId("probe-result").textContent = state.probe.message;
-      byId("probe-result").dataset.state = state.probe.status;
       byId("autocomplete-state").textContent = state.autocomplete.message;
       byId("settings-message").textContent = state.notice;
       byId("logs").textContent = state.logs || "No Reticle activity yet.";
@@ -199,7 +203,7 @@ export function panelHtml(cspSource: string, nonce: string): string {
       if (event.data?.type === "state") render(event.data.state);
     });
     byId("check-health").addEventListener("click", () => vscode.postMessage({ type: "checkHealth" }));
-    byId("test-completion").addEventListener("click", () => vscode.postMessage({ type: "testCompletion" }));
+    byId("trigger-completion").addEventListener("click", () => vscode.postMessage({ type: "triggerCompletion" }));
     byId("open-settings").addEventListener("click", () => vscode.postMessage({ type: "openSettings" }));
     byId("copy-logs").addEventListener("click", () => vscode.postMessage({ type: "copyLogs" }));
     byId("clear-logs").addEventListener("click", () => vscode.postMessage({ type: "clearLogs" }));

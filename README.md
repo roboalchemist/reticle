@@ -167,9 +167,10 @@ Run **Reticle: Test Autocomplete Endpoint**. See the [complete MTPLX guide](docs
    ```
 
 4. Open the Reticle target icon in the Activity Bar. The control panel shows
-   live endpoint health, editable core settings, a real FIM completion test,
-   and the extension log stream in one place. You can also run **Reticle: Test
-   Autocomplete Endpoint** from the Command Palette.
+   live endpoint health, editable core settings, an active-editor completion
+   trigger, and the extension log stream in one place. You can also run
+   **Reticle: Test Autocomplete Endpoint** from the Command Palette for the
+   fixed suffix-dependent compatibility diagnostic.
 5. Type after `return ` in a source file. Reticle shows ghost text; press `Tab`
    to accept the entire single- or multi-line suggestion. Suggestions trigger
    automatically after a short typing pause. After acceptance, Reticle waits
