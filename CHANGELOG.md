@@ -2,6 +2,13 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.14.4
+
+- Rename the native healthy state to “Model running” so the menu, settings
+  badge, tooltip, and accessibility description identify the active model.
+- Tighten the menu-bar logo canvas so the existing mark renders at a visual
+  size consistent with neighboring macOS status icons.
+
 ## 0.14.3
 
 - Replace the technical landing-page introduction with a concise description
