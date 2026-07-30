@@ -1,5 +1,14 @@
 # Worklog
 
+## 2026-07-30 — Technical guide extraction
+
+- Replaced the technical opening paragraph with a single description of
+  completely local, Cursor-style tab autocomplete.
+- Moved the completion lifecycle and FIM transport explanation into
+  `docs/how-completion-works.md`.
+- Moved README troubleshooting into `docs/troubleshooting.md` and linked both
+  focused guides from the documentation list.
+
 ## 2026-07-30 — README hierarchy and privacy follow-up
 
 - Put the Reticle VS Code extension before the optional Reticle MLX companion
