@@ -3,6 +3,10 @@ import XCTest
 @testable import ReticleMLX
 
 final class ReticleMLXTests: XCTestCase {
+  func testHealthyStateSaysTheModelIsRunning() {
+    XCTAssertEqual(ServiceState.healthy.title, "Model running")
+  }
+
   func testServiceStateSeparatesStartingFromUnhealthy() {
     let startedAt = Date(timeIntervalSince1970: 1_000)
     var resolver = ServiceStateResolver(startupGraceInterval: 90)

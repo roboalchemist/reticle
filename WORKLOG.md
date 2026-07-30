@@ -1,5 +1,15 @@
 # Worklog
 
+## 2026-07-30 — Native status clarity and menu-bar sizing
+
+- Renamed the user-facing healthy state to “Model running” so the menu and
+  settings badge describe the active model, not merely an abstract health
+  check.
+- Measured the 36×36 menu-bar PNG and found that transparent padding reduced
+  its visible glyph to 26×22 pixels, or roughly 13×11 points at runtime.
+- Tightened the repo-native SVG viewBox before regenerating the PNG so the same
+  logo fills the standard 18-point menu-bar image more consistently.
+
 ## 2026-07-30 — Technical guide extraction
 
 - Replaced the technical opening paragraph with a single description of
