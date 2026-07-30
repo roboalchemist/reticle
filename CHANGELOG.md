@@ -2,6 +2,13 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.14.2
+
+- Lead with the VS Code extension in the product overview and remove the
+  comparison-style capabilities section.
+- Clarify that Reticle MLX model traffic stays entirely local and identify its
+  minimal Sparkle update check as the only background internet use.
+
 ## 0.14.1
 
 - Refocus the landing page on the complete Reticle MLX + VS Code setup and the
