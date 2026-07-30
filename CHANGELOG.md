@@ -2,6 +2,17 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.14.0
+
+- List model IDs reported by the configured `/v1/models` endpoint as editable
+  suggestions in the VS Code control panel.
+- Preserve `default_model` and arbitrary manual IDs, and keep FIM selection
+  explicit because the standard model response has no prompt-format metadata.
+- Bound, validate, deduplicate, and sort untrusted model-list responses while
+  treating successful non-JSON health responses as healthy.
+- Preserve unsaved settings while periodic health and log updates refresh the
+  panel.
+
 ## 0.13.0
 
 - Add a dedicated Reticle Activity Bar panel combining live endpoint health,
