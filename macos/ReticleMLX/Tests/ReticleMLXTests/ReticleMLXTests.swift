@@ -271,16 +271,31 @@ final class ReticleMLXTests: XCTestCase {
     XCTAssertFalse(ModelPreset.qwenCoder3B.model.contains("Instruct"))
   }
 
-  func testZetaIsSecondAndUsesValidatedMLXQuant() {
-    XCTAssertEqual(ModelPreset.suggested.dropFirst().first, ModelPreset.zeta7B)
+  func testZeta21IsSecondAndUsesMacReadyMLXQuant() {
+    XCTAssertEqual(ModelPreset.suggested.dropFirst().first, ModelPreset.zeta2Point1)
+    XCTAssertEqual(ModelPreset.zeta2Point1.model, "slxnxl/zeta-2.1-mlx-4bit")
+    XCTAssertEqual(ModelPreset.zeta2Point1.runtime, .mlxLM)
+    XCTAssertEqual(ModelPreset.zeta2Point1.minimumMemoryGB, 16)
+    XCTAssertFalse(ModelPreset.zeta2Point1.supportsInlineCompletion)
+    XCTAssertEqual(
+      ModelPreset.zeta2Point1.upstreamURL?.absoluteString,
+      "https://huggingface.co/zed-industries/zeta-2.1"
+    )
+    XCTAssertFalse(ModelPreset.inlineCompletionPresets.contains(ModelPreset.zeta2Point1))
+  }
+
+  func testZeta7BRemainsValidatedFIMOption() {
+    XCTAssertEqual(ModelPreset.suggested.dropFirst(2).first, ModelPreset.zeta7B)
     XCTAssertEqual(ModelPreset.zeta7B.model, "mlx-community/zed-industries-zeta-4bit")
     XCTAssertEqual(ModelPreset.zeta7B.fimFormat, "qwen")
     XCTAssertEqual(ModelPreset.zeta7B.runtime, .mlxLM)
     XCTAssertEqual(ModelPreset.zeta7B.minimumMemoryGB, 16)
+    XCTAssertTrue(ModelPreset.zeta7B.supportsInlineCompletion)
   }
 
   func testSuggestedCatalogCoversSpeedBalanceQualityAndLargeModels() {
-    XCTAssertEqual(ModelPreset.suggested.count, 6)
+    XCTAssertEqual(ModelPreset.suggested.count, 7)
+    XCTAssertEqual(ModelPreset.inlineCompletionPresets.count, 6)
     XCTAssertEqual(ModelPreset.suggested.first, ModelPreset.seedCoder)
     XCTAssertTrue(ModelPreset.suggested.first?.isRecommended == true)
     XCTAssertTrue(ModelPreset.suggested.dropFirst().allSatisfy { !$0.isRecommended })
@@ -425,7 +440,8 @@ final class ReticleMLXTests: XCTestCase {
       qualityScore: 1,
       speedScore: 1,
       memoryScore: 1,
-      badge: nil
+      badge: nil,
+      supportsInlineCompletion: true
     )
     let controller = ModelDownloadController()
     controller.start(preset, executableURL: script)

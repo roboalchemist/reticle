@@ -28,6 +28,7 @@ struct ModelPreset: Identifiable, Hashable {
   let speedScore: Int
   let memoryScore: Int
   let badge: String?
+  let supportsInlineCompletion: Bool
 
   static let seedCoder = ModelPreset(
     id: "seed-coder-8b",
@@ -45,7 +46,28 @@ struct ModelPreset: Identifiable, Hashable {
     qualityScore: 5,
     speedScore: 3,
     memoryScore: 3,
-    badge: "Recommended"
+    badge: "Recommended",
+    supportsInlineCompletion: true
+  )
+
+  static let zeta2Point1 = ModelPreset(
+    id: "zeta-2.1",
+    name: "Zeta 2.1",
+    tagline: "Native next-edit prediction",
+    model: "slxnxl/zeta-2.1-mlx-4bit",
+    requestModel: "default_model",
+    fimFormat: "seed",
+    runtime: .mlxLM,
+    defaultPort: 8001,
+    summary:
+      "The Mac-ready 4-bit build of Zed’s latest edit-prediction model. Download it now for Reticle’s native Next Edit mode; ordinary FIM activation stays disabled until that transport lands.",
+    downloadSizeBytes: 4_653_300_633,
+    minimumMemoryGB: 16,
+    qualityScore: 5,
+    speedScore: 3,
+    memoryScore: 3,
+    badge: "Next Edit",
+    supportsInlineCompletion: false
   )
 
   static let zeta7B = ModelPreset(
@@ -64,7 +86,8 @@ struct ModelPreset: Identifiable, Hashable {
     qualityScore: 4,
     speedScore: 3,
     memoryScore: 3,
-    badge: "Edit prediction"
+    badge: "Edit prediction",
+    supportsInlineCompletion: true
   )
 
   static let qwenCoder1Point5B = ModelPreset(
@@ -83,7 +106,8 @@ struct ModelPreset: Identifiable, Hashable {
     qualityScore: 3,
     speedScore: 5,
     memoryScore: 5,
-    badge: "Fastest"
+    badge: "Fastest",
+    supportsInlineCompletion: true
   )
 
   static let qwenCoder3B = ModelPreset(
@@ -102,7 +126,8 @@ struct ModelPreset: Identifiable, Hashable {
     qualityScore: 4,
     speedScore: 4,
     memoryScore: 4,
-    badge: "Balanced"
+    badge: "Balanced",
+    supportsInlineCompletion: true
   )
 
   static let qwen35MTPLX = ModelPreset(
@@ -121,7 +146,8 @@ struct ModelPreset: Identifiable, Hashable {
     qualityScore: 4,
     speedScore: 5,
     memoryScore: 2,
-    badge: "Speculative"
+    badge: "Speculative",
+    supportsInlineCompletion: true
   )
 
   static let codestral22B = ModelPreset(
@@ -140,7 +166,8 @@ struct ModelPreset: Identifiable, Hashable {
     qualityScore: 4,
     speedScore: 2,
     memoryScore: 1,
-    badge: "Large"
+    badge: "Large",
+    supportsInlineCompletion: true
   )
 
   static let custom = ModelPreset(
@@ -158,10 +185,12 @@ struct ModelPreset: Identifiable, Hashable {
     qualityScore: 0,
     speedScore: 0,
     memoryScore: 0,
-    badge: nil
+    badge: nil,
+    supportsInlineCompletion: true
   )
 
   private static let catalog = [
+    zeta2Point1,
     zeta7B,
     qwenCoder1Point5B,
     qwenCoder3B,
@@ -181,6 +210,12 @@ struct ModelPreset: Identifiable, Hashable {
     .map(\.element)
 
   static let all = suggested + [custom]
+  static let inlineCompletionPresets = suggested.filter(\.supportsInlineCompletion)
+
+  var upstreamURL: URL? {
+    guard id == Self.zeta2Point1.id else { return nil }
+    return URL(string: "https://huggingface.co/zed-industries/zeta-2.1")
+  }
 
   var isRecommended: Bool {
     badge == "Recommended"
