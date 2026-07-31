@@ -16,7 +16,9 @@ const { settings, showWarningMessage } = vi.hoisted(() => ({
           ? ("qwen" as const)
           : process.env.RETICLE_INTEGRATION_FIM_FORMAT === "seed"
             ? ("seed" as const)
-            : ("openai" as const),
+            : process.env.RETICLE_INTEGRATION_FIM_FORMAT === "zeta"
+              ? ("zeta" as const)
+              : ("openai" as const),
     languageAllowlist: [],
     languageDenylist: [],
     maxLines: 8,

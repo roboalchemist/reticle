@@ -1,6 +1,12 @@
 import { buildCompletionsRequest, completionsUrl } from "../completion/request.js";
 import { buildCompletionHeaders, createSessionId } from "../completion/session.js";
 import { streamCompletion, type Fetch } from "../completion/stream.js";
+import {
+  reachedZetaBoundary,
+  sanitizeZetaCompletion,
+  zetaCursorInsertion,
+  zetaEditableRegion,
+} from "../completion/zeta.js";
 import type { ReticleSettings } from "./settings.js";
 
 export const PROBE_PREFIX = "function select(user: User) {\n  const value = user.";
@@ -59,20 +65,32 @@ export async function probeEndpoint(
 ): Promise<ProbeResult> {
   const controller = options.signal ? undefined : new AbortController();
   const signal = options.signal ?? controller!.signal;
-  const body = buildCompletionsRequest(PROBE_PREFIX, PROBE_SUFFIX, settings.model, {
-    fimFormat: settings.fimFormat,
-    maxTokens: Math.min(settings.maxTokens, 64),
-    temperature: 0,
-  });
+  const body = buildCompletionsRequest(
+    PROBE_PREFIX,
+    PROBE_SUFFIX,
+    settings.model,
+    {
+      fimFormat: settings.fimFormat,
+      maxTokens: Math.min(settings.maxTokens, 64),
+      temperature: 0,
+    },
+    "reticle_probe.ts",
+  );
   const sessionId = createSessionId(settings.model, "reticle://endpoint-probe");
   const startedAt = performance.now();
-  const text = await streamCompletion({
+  const raw = await streamCompletion({
     url: completionsUrl(settings.baseURL),
     body,
     headers: buildCompletionHeaders(sessionId, settings.extraHeaders, settings.apiKey),
     signal,
     fetch: options.fetch,
+    shouldStop: settings.fimFormat === "zeta" ? reachedZetaBoundary : undefined,
   });
+  const zetaRegion = zetaEditableRegion(PROBE_PREFIX, PROBE_SUFFIX);
+  const text =
+    settings.fimFormat === "zeta"
+      ? zetaCursorInsertion(sanitizeZetaCompletion(raw, zetaRegion, settings.maxLines), zetaRegion)
+      : raw;
   return {
     classification: classifyProbeResponse(text),
     elapsedMs: Math.round(performance.now() - startedAt),

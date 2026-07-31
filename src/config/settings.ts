@@ -4,7 +4,7 @@ export interface ConfigurationReader {
   get<T>(section: string, defaultValue: T): T;
 }
 
-export type FimFormat = "codestral" | "openai" | "qwen" | "seed";
+export type FimFormat = "codestral" | "openai" | "qwen" | "seed" | "zeta";
 
 export interface ReticleSettings {
   apiKey: string;
@@ -64,9 +64,15 @@ function booleanValue(
 
 function fimFormatValue(configuration: ConfigurationReader): FimFormat {
   const value = stringValue(configuration, "fimFormat", "openai");
-  if (value !== "codestral" && value !== "openai" && value !== "qwen" && value !== "seed") {
+  if (
+    value !== "codestral" &&
+    value !== "openai" &&
+    value !== "qwen" &&
+    value !== "seed" &&
+    value !== "zeta"
+  ) {
     throw new SettingsError(
-      'Reticle: reticle.fimFormat must be "codestral", "openai", "qwen", or "seed".',
+      'Reticle: reticle.fimFormat must be "codestral", "openai", "qwen", "seed", or "zeta".',
     );
   }
   return value;

@@ -63,6 +63,17 @@ enum BenchmarkRequestFactory {
         temperature: 0,
         stream: true
       )
+    case "zeta":
+      return BenchmarkRequestPayload(
+        model: configuration.requestModel,
+        prompt:
+          "<[fim-suffix]>\(suffix)<[fim-prefix]><filename>reticle_benchmark.ts\n<|marker_1|>\(prefix)<|user_cursor|><|marker_2|><[fim-middle]>",
+        suffix: "",
+        maxTokens: 64,
+        stop: nil,
+        temperature: 0,
+        stream: true
+      )
     case "codestral":
       return BenchmarkRequestPayload(
         model: configuration.requestModel,

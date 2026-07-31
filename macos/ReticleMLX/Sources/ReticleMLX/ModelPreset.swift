@@ -53,21 +53,21 @@ struct ModelPreset: Identifiable, Hashable {
   static let zeta2Point1 = ModelPreset(
     id: "zeta-2.1",
     name: "Zeta 2.1",
-    tagline: "Native next-edit prediction",
+    tagline: "Latest Zed edit model",
     model: "slxnxl/zeta-2.1-mlx-4bit",
     requestModel: "default_model",
-    fimFormat: "seed",
+    fimFormat: "zeta",
     runtime: .mlxLM,
     defaultPort: 8001,
     summary:
-      "The Mac-ready 4-bit build of Zed’s latest edit-prediction model. Download it now for Reticle’s native Next Edit mode; ordinary FIM activation stays disabled until that transport lands.",
+      "The Mac-ready 4-bit build of Zed’s latest edit-prediction model. Reticle adapts its marker-wrapped region rewrites into regular cursor-local FIM suggestions.",
     downloadSizeBytes: 4_653_300_633,
     minimumMemoryGB: 16,
     qualityScore: 5,
     speedScore: 3,
     memoryScore: 3,
-    badge: "Next Edit",
-    supportsInlineCompletion: false
+    badge: "Zeta FIM",
+    supportsInlineCompletion: true
   )
 
   static let zeta7B = ModelPreset(
@@ -213,8 +213,26 @@ struct ModelPreset: Identifiable, Hashable {
   static let inlineCompletionPresets = suggested.filter(\.supportsInlineCompletion)
 
   var upstreamURL: URL? {
-    guard id == Self.zeta2Point1.id else { return nil }
-    return URL(string: "https://huggingface.co/zed-industries/zeta-2.1")
+    let address: String
+    switch id {
+    case Self.seedCoder.id:
+      address = "https://huggingface.co/ByteDance-Seed/Seed-Coder-8B-Base"
+    case Self.zeta2Point1.id:
+      address = "https://huggingface.co/zed-industries/zeta-2.1"
+    case Self.zeta7B.id:
+      address = "https://huggingface.co/zed-industries/zeta"
+    case Self.qwenCoder1Point5B.id:
+      address = "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B"
+    case Self.qwenCoder3B.id:
+      address = "https://huggingface.co/Qwen/Qwen2.5-Coder-3B"
+    case Self.qwen35MTPLX.id:
+      address = "https://huggingface.co/Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed"
+    case Self.codestral22B.id:
+      address = "https://huggingface.co/mistralai/Codestral-22B-v0.1"
+    default:
+      return nil
+    }
+    return URL(string: address)
   }
 
   var isRecommended: Bool {

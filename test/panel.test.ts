@@ -83,6 +83,7 @@ describe("Reticle control panel", () => {
     expect(html).toContain('class="settings-actions"');
     expect(html).toContain('list="model-options"');
     expect(html).toContain('id="model-options"');
+    expect(html).toContain('<option value="zeta">Zeta 2.1 region FIM</option>');
     expect(html).toContain("downloaded models reported by the local endpoint");
     expect(html).toContain('document.createElement("option")');
     expect(html).toContain("label.check input { flex: none; margin: 0; width: auto; }");

@@ -154,6 +154,7 @@ export function panelHtml(cspSource: string, nonce: string, logoUri: string): st
         <select id="fimFormat">
           <option value="qwen">Qwen</option>
           <option value="seed">Seed</option>
+          <option value="zeta">Zeta 2.1 region FIM</option>
           <option value="codestral">Codestral</option>
           <option value="openai">OpenAI prompt + suffix</option>
         </select>

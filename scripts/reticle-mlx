@@ -52,7 +52,7 @@ Commands:
 
 Environment:
   RETICLE_MLX_MODEL              Hugging Face model ID or local MLX model path
-  RETICLE_MLX_FIM_FORMAT         Reticle transport: codestral, seed, qwen, or openai
+  RETICLE_MLX_FIM_FORMAT         Reticle transport: codestral, seed, qwen, zeta, or openai
   RETICLE_MLX_PORT               Loopback port (default: 8001)
   RETICLE_MLX_PROMPT_CACHE_SIZE  Distinct MLX KV caches to retain (default: 8)
   RETICLE_MLX_PROMPT_CACHE_BYTES Maximum KV cache memory in bytes (default: 4294967296)
@@ -90,8 +90,8 @@ validate_options() {
   validate_positive_integer "${prompt_cache_size}" "RETICLE_MLX_PROMPT_CACHE_SIZE"
   validate_positive_integer "${prompt_cache_bytes}" "RETICLE_MLX_PROMPT_CACHE_BYTES"
   case "${fim_format}" in
-    codestral|seed|qwen|openai) ;;
-    *) fail "RETICLE_MLX_FIM_FORMAT must be codestral, seed, qwen, or openai" ;;
+    codestral|seed|qwen|zeta|openai) ;;
+    *) fail "RETICLE_MLX_FIM_FORMAT must be codestral, seed, qwen, zeta, or openai" ;;
   esac
 }
 
@@ -702,6 +702,7 @@ import sys
 model, fim_format = sys.argv[1:]
 prefix = "function select(user: User) {\n  const value = user."
 suffix = ";\n  return value;\n}\ninterface User { suffixOnlyIdentifier: string }\n"
+max_tokens = 8
 
 if fim_format == "seed":
     prompt = f"<[fim-suffix]>{suffix}<[fim-prefix]>{prefix}<[fim-middle]>"
@@ -711,6 +712,18 @@ elif fim_format == "qwen":
     prompt = f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>"
     request_suffix = ""
     stop = ["\n", "<|fim_pad|>", "<|endoftext|>"]
+elif fim_format == "zeta":
+    before_region, region_before_cursor = prefix.rsplit("\n", 1)
+    region_after_cursor, after_region = suffix.split("\n", 1)
+    prompt = (
+        f"<[fim-suffix]>\n{after_region}"
+        f"<[fim-prefix]><filename>reticle_probe.ts\n{before_region}\n"
+        f"<|marker_1|>{region_before_cursor}<|user_cursor|>{region_after_cursor}"
+        f"<|marker_2|><[fim-middle]>"
+    )
+    request_suffix = ""
+    stop = []
+    max_tokens = 64
 elif fim_format == "codestral":
     prompt = f"[SUFFIX]{suffix}[PREFIX]{prefix}"
     request_suffix = ""
@@ -726,7 +739,7 @@ print(
             "model": model,
             "prompt": prompt,
             "suffix": request_suffix,
-            "max_tokens": 8,
+            "max_tokens": max_tokens,
             "temperature": 0,
             "stream": False,
             "stop": stop,
@@ -751,6 +764,16 @@ json_value() {
 }
 
 completion_starts_with_probe_identifier() {
+  if [ "${fim_format}" = "zeta" ]; then
+    case "${1}" in
+      *'<|marker_1|>'*suffixOnlyIdentifier*'<|marker_2|>'*)
+        return 0
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  fi
   case "${1}" in
     suffixOnlyIdentifier | suffixOnlyIdentifier[!A-Za-z0-9_]*)
       return 0

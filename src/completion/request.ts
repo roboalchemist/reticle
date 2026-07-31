@@ -1,4 +1,5 @@
 import type { FimFormat } from "../config/settings.js";
+import { buildZetaPrompt } from "./zeta.js";
 
 export interface CompletionRequestSettings {
   fimFormat: FimFormat;
@@ -43,6 +44,7 @@ export function buildCompletionsRequest(
   suffix: string,
   model: string,
   settings: CompletionRequestSettings,
+  fileName = "current_file",
 ): OpenAICompletionsRequest {
   if (settings.fimFormat === "qwen") {
     return {
@@ -59,6 +61,16 @@ export function buildCompletionsRequest(
     return {
       model,
       prompt: `${SEED_FIM_SUFFIX}${suffix}${SEED_FIM_PREFIX}${prefix}${SEED_FIM_MIDDLE}`,
+      suffix: "",
+      max_tokens: settings.maxTokens,
+      temperature: settings.temperature,
+      stream: true,
+    };
+  }
+  if (settings.fimFormat === "zeta") {
+    return {
+      model,
+      prompt: buildZetaPrompt(prefix, suffix, fileName),
       suffix: "",
       max_tokens: settings.maxTokens,
       temperature: settings.temperature,

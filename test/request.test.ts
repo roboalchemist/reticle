@@ -55,6 +55,31 @@ describe("OpenAI-compatible FIM request", () => {
     });
   });
 
+  it("adapts cursor-local FIM to Zeta's editable-region protocol", () => {
+    expect(
+      buildCompletionsRequest(
+        "function f() {\n  return user.",
+        ";\n}\n",
+        "zeta",
+        {
+          fimFormat: "zeta",
+          maxTokens: 64,
+          temperature: 0,
+        },
+        "src/file.ts",
+      ),
+    ).toEqual({
+      model: "zeta",
+      prompt:
+        "<[fim-suffix]>\n}\n<[fim-prefix]><filename>src/file.ts\nfunction f() {\n" +
+        "<|marker_1|>  return user.<|user_cursor|>;<|marker_2|><[fim-middle]>",
+      suffix: "",
+      max_tokens: 64,
+      temperature: 0,
+      stream: true,
+    });
+  });
+
   it("embeds Codestral prefix and suffix control tokens", () => {
     expect(
       buildCompletionsRequest("const value = user.", ";\n", "codestral", {

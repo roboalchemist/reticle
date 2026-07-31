@@ -2,6 +2,14 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.16.0
+
+- Make Zeta 2.1 selectable as a regular VS Code inline-completion model through
+  a dedicated cursor-region serializer, marker-aware streaming boundary, and
+  safe rewrite parser.
+- Add authoritative upstream model-card links to every built-in model card in
+  the Reticle MLX catalog.
+
 ## 0.15.1
 
 - Add per-model deletion to the macOS model catalog, including an exact-model

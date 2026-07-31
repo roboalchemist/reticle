@@ -58,11 +58,17 @@ function booleanValue(value: unknown, key: string): boolean {
 }
 
 function fimFormatValue(value: unknown): FimFormat {
-  if (value === "codestral" || value === "openai" || value === "qwen" || value === "seed") {
+  if (
+    value === "codestral" ||
+    value === "openai" ||
+    value === "qwen" ||
+    value === "seed" ||
+    value === "zeta"
+  ) {
     return value;
   }
   throw new SettingsError(
-    'Reticle: reticle.fimFormat must be "codestral", "openai", "qwen", or "seed".',
+    'Reticle: reticle.fimFormat must be "codestral", "openai", "qwen", "seed", or "zeta".',
   );
 }
 

@@ -272,6 +272,7 @@ struct SettingsView: View {
               Text("OpenAI suffix").tag("openai")
               Text("Qwen PSM").tag("qwen")
               Text("Seed SPM").tag("seed")
+              Text("Zeta region").tag("zeta")
             }
             .pickerStyle(.segmented)
             Text(ModelPreset.custom.summary)

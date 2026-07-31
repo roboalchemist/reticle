@@ -79,4 +79,36 @@ describe("FIM endpoint probe", () => {
     });
     expect(headers?.get("x-reticle-autocomplete-session-id")).toMatch(/^[a-f0-9]{64}$/);
   });
+
+  it("classifies a marker-wrapped Zeta region rewrite as an insertion", async () => {
+    let request: Record<string, unknown> | undefined;
+    const fetch = (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      request = JSON.parse(typeof init?.body === "string" ? init.body : "") as Record<
+        string,
+        unknown
+      >;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                text: "<|marker_1|>  const value = user.suffixOnlyIdentifier;<|marker_2|>",
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      );
+    };
+
+    const result = await probeEndpoint({ ...settings, fimFormat: "zeta" }, { fetch });
+
+    expect(result.classification).toBe("insertion");
+    expect(result.text).toBe("suffixOnlyIdentifier");
+    expect(request?.prompt).toContain("<filename>reticle_probe.ts");
+    expect(request?.prompt).toContain("<|user_cursor|>");
+  });
 });

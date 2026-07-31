@@ -92,7 +92,13 @@ describe("Reticle settings", () => {
       "every reticle.extraHeaders value must be a string",
     );
     expect(() => readSettings(configuration({ model: "fim", fimFormat: "unknown" }))).toThrow(
-      'reticle.fimFormat must be "codestral", "openai", "qwen", or "seed"',
+      'reticle.fimFormat must be "codestral", "openai", "qwen", "seed", or "zeta"',
+    );
+  });
+
+  it("accepts the Zeta editable-region FIM transport", () => {
+    expect(readSettings(configuration({ model: "zeta", fimFormat: "zeta" })).fimFormat).toBe(
+      "zeta",
     );
   });
 });

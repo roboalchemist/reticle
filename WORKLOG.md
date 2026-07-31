@@ -1,5 +1,18 @@
 # Worklog
 
+## 2026-07-30 — Zeta 2.1 regular-FIM adapter and complete source links
+
+- Confirmed from Zed Industries' official model card that Zeta 2.1 requires
+  Seed SPM framing plus numbered editable-region and cursor markers.
+- Reproduced the official 11 KB sample with the local 4-bit MLX conversion.
+  A zero-width region produced repeated opening markers, so the adapter uses
+  the current logical line as the smallest safe replacement region.
+- Added marker-aware streaming, complete-response validation, copied-suffix
+  trimming, and a normal VS Code replacement range so protocol tokens never
+  appear as ghost text.
+- Added official upstream model-card URLs for Seed-Coder, both Zeta models,
+  both Qwen2.5-Coder models, the MTPLX preset, and Codestral.
+
 ## 2026-07-30 — Safe downloaded-model deletion
 
 - Added a destructive action only to downloaded model cards, with confirmation

@@ -34,6 +34,12 @@ vi.mock("vscode", () => ({
       public readonly end: unknown,
     ) {}
   },
+  Position: class Position {
+    constructor(
+      public readonly line: number,
+      public readonly character: number,
+    ) {}
+  },
   InlineCompletionTriggerKind: { Invoke: 0, Automatic: 1 },
   window: { showWarningMessage },
   commands: { executeCommand: vi.fn() },
@@ -59,6 +65,7 @@ describe("inline provider request coordination", () => {
     settings.enableAutoTrigger = true;
     settings.languageAllowlist = [];
     settings.languageDenylist = [];
+    settings.fimFormat = "openai";
     settings.maxLines = 8;
     settings.multiFileContext = false;
     showWarningMessage.mockReset().mockResolvedValue(undefined);
@@ -218,6 +225,72 @@ describe("inline provider request coordination", () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.insertText).toBe("const name = getName();\n  return name;");
+    provider.dispose();
+  });
+
+  it("turns a marker-wrapped Zeta line rewrite into a replacement suggestion", async () => {
+    const { InlineProvider } = await import("../src/completion/InlineProvider.js");
+    settings.fimFormat = "zeta";
+    settings.model = "default_model";
+    const beforeCursor = "  const value = user.";
+    const prefix = `function f() {\n${beforeCursor}`;
+    const suffix = ";\n}\n";
+    let request: Record<string, unknown> | undefined;
+    const events = [
+      { choices: [{ text: "<|marker_1|>  const value = user.name;" }] },
+      { choices: [{ text: "<|marker_2|>" }] },
+      { choices: [{ text: "ignored protocol overflow" }] },
+    ]
+      .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+      .join("");
+    const fetch = (_input: string | URL | Request, init?: RequestInit) => {
+      request = JSON.parse(typeof init?.body === "string" ? init.body : "") as Record<
+        string,
+        unknown
+      >;
+      return Promise.resolve(
+        new Response(`${events}data: [DONE]\n\n`, {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+      );
+    };
+    const lineStartOffset = "function f() {\n".length;
+    const zetaDocument = {
+      ...document,
+      getText: () => prefix + suffix,
+      offsetAt: (value: { line: number; character: number }) =>
+        value.line === 1 ? lineStartOffset + value.character : 0,
+      uri: {
+        path: "/repo/src/file.ts",
+        toString: () => "file:///repo/src/file.ts",
+      },
+    };
+    const zetaPosition = { line: 1, character: beforeCursor.length };
+    const provider = new InlineProvider({ fetch });
+
+    const result = await provider.provideInlineCompletionItems(
+      zetaDocument as never,
+      zetaPosition as never,
+      { triggerKind: 0 } as never,
+      token,
+    );
+
+    expect(request?.prompt).toContain("<filename>repo/src/file.ts");
+    expect(request?.prompt).toContain(
+      "<|marker_1|>  const value = user.<|user_cursor|>;<|marker_2|>",
+    );
+    expect(result.items[0]?.insertText).toBe("  const value = user.name;");
+    expect(result.items[0]?.range).toMatchObject({
+      start: { line: 1, character: 0 },
+      end: { line: 1, character: beforeCursor.length + 1 },
+    });
+    expect(
+      provider.recordDocumentChange(
+        { uri: zetaDocument.uri, version: 2 } as never,
+        [{ rangeOffset: lineStartOffset, text: "  const value = user.name;" }] as never,
+      ),
+    ).toBe(true);
     provider.dispose();
   });
 

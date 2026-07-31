@@ -197,6 +197,7 @@ export class ReticlePanelProvider implements vscode.WebviewViewProvider, vscode.
           fimFormat === "codestral" ||
           fimFormat === "qwen" ||
           fimFormat === "seed" ||
+          fimFormat === "zeta" ||
           fimFormat === "openai"
             ? fimFormat
             : "openai",

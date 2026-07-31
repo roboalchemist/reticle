@@ -31,7 +31,7 @@ the complete configuration surface.
 | `reticle.model`             |                      empty | Exact request model ID. Reticle MLX normally uses `default_model`; its MLX-LM endpoint also accepts downloaded model IDs. |
 | `reticle.apiKey`            |                      empty | Optional on loopback; required for remote endpoints.                                                                      |
 | `reticle.extraHeaders`      |                       `{}` | Additional string-valued request headers.                                                                                 |
-| `reticle.fimFormat`         |                   `openai` | FIM serialization: `openai`, `qwen`, `seed`, or `codestral`.                                                              |
+| `reticle.fimFormat`         |                   `openai` | FIM serialization: `openai`, `qwen`, `seed`, `zeta`, or `codestral`.                                                      |
 | `reticle.maxLines`          |                        `8` | Maximum lines displayed in one inline completion (1–64).                                                                  |
 | `reticle.maxTokens`         |                      `256` | Maximum generated tokens (1–2048).                                                                                        |
 | `reticle.temperature`       |                        `0` | Sampling temperature (0–2).                                                                                               |

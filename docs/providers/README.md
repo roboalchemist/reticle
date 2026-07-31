@@ -1,6 +1,6 @@
 # Provider setup
 
-Every Reticle provider must expose `POST /v1/completions`, return text in `choices[0].text`, and stream OpenAI-style SSE when `stream` is true. It must honor separate `prompt` and `suffix` fields (`reticle.fimFormat: "openai"`) or accept the configured model-native markers: Qwen PSM (`"qwen"`) or Seed-Coder SPM (`"seed"`).
+Every Reticle provider must expose `POST /v1/completions`, return text in `choices[0].text`, and stream OpenAI-style SSE when `stream` is true. It must honor separate `prompt` and `suffix` fields (`reticle.fimFormat: "openai"`) or accept the configured model-native markers: Qwen PSM (`"qwen"`), Seed-Coder SPM (`"seed"`), or Zeta 2.1 editable regions (`"zeta"`).
 
 | Provider    | Typical base URL                            | Guide                 | FIM format       |
 | ----------- | ------------------------------------------- | --------------------- | ---------------- |

@@ -101,7 +101,7 @@ printf '%s\\n' 'Deleted example/model. Reclaimed approximately 4.0 GB.'
     expect(invalidCache.status).toBe(1);
     expect(invalidCache.stderr).toContain("must be a positive integer");
     expect(invalidFormat.status).toBe(1);
-    expect(invalidFormat.stderr).toContain("must be codestral, seed, qwen, or openai");
+    expect(invalidFormat.stderr).toContain("must be codestral, seed, qwen, zeta, or openai");
   });
 
   it("demand-starts a freshly bootstrapped LaunchAgent", () => {

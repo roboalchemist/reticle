@@ -6,6 +6,7 @@ import { buildCompletionsRequest, completionsUrl } from "./request.js";
 import { reachedGuardedInlineBoundary, sanitizeCompletion } from "./sanitize.js";
 import { buildCompletionHeaders, createSessionId } from "./session.js";
 import { isAbortError, streamCompletion, type Fetch } from "./stream.js";
+import { reachedZetaBoundary, sanitizeZetaCompletion, zetaEditableRegion } from "./zeta.js";
 import {
   isLanguageEnabled,
   readSettings,
@@ -169,6 +170,8 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
         )
       : localContext.prefix;
     const suffix = localContext.suffix;
+    const zetaRegion =
+      settings.fimFormat === "zeta" ? zetaEditableRegion(prefix, suffix) : undefined;
     const sanitizeContext = {
       languageId: document.languageId,
       maxLines: settings.maxLines,
@@ -178,7 +181,9 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
     let requestFailed = false;
 
     try {
-      const body = buildCompletionsRequest(prefix, suffix, settings.model, settings);
+      const documentPath =
+        (document.uri.path ?? document.fileName ?? "").replace(/^\/+/u, "") || "current_file";
+      const body = buildCompletionsRequest(prefix, suffix, settings.model, settings, documentPath);
       const sessionId = createSessionId(settings.model, documentScope);
       const headers = buildCompletionHeaders(sessionId, settings.extraHeaders, settings.apiKey);
       const raw = await streamCompletion({
@@ -187,7 +192,10 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
         headers,
         signal: controller.signal,
         fetch: this.options.fetch,
-        shouldStop: (completion) => reachedGuardedInlineBoundary(completion, sanitizeContext),
+        shouldStop: (completion) =>
+          settings.fimFormat === "zeta"
+            ? reachedZetaBoundary(completion)
+            : reachedGuardedInlineBoundary(completion, sanitizeContext),
       });
 
       const unsupported = classifyUnsupportedResponse(raw);
@@ -208,7 +216,9 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
         return { items: [] };
       }
 
-      const insertion = sanitizeCompletion(raw, sanitizeContext);
+      const insertion = zetaRegion
+        ? sanitizeZetaCompletion(raw, zetaRegion, settings.maxLines)
+        : sanitizeCompletion(raw, sanitizeContext);
       if (!insertion) {
         this.options.output?.appendLine(
           `[autocomplete] No insertable text after ${Math.round(performance.now() - startedAt)} ms.`,
@@ -218,13 +228,19 @@ export class InlineProvider implements vscode.InlineCompletionItemProvider, vsco
       this.options.output?.appendLine(
         `[autocomplete] Suggestion ready in ${Math.round(performance.now() - startedAt)} ms (${insertion.length} characters, ${insertion.split("\n").length} lines).`,
       );
+      const range = zetaRegion
+        ? new vscode.Range(
+            new vscode.Position(position.line, position.character - zetaRegion.beforeCursor.length),
+            new vscode.Position(position.line, position.character + zetaRegion.afterCursor.length),
+          )
+        : new vscode.Range(position, position);
       this.offeredCompletions.set(documentScope, {
         documentVersion,
         insertion,
-        rangeOffset: document.offsetAt(position),
+        rangeOffset: document.offsetAt(range.start),
       });
       return {
-        items: [new vscode.InlineCompletionItem(insertion, new vscode.Range(position, position))],
+        items: [new vscode.InlineCompletionItem(insertion, range)],
       };
     } catch (error) {
       if (!isAbortError(error)) {

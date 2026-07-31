@@ -147,6 +147,19 @@ final class ReticleMLXTests: XCTestCase {
     XCTAssertTrue(qwen.prompt.hasPrefix("<|fim_prefix|>"))
     XCTAssertTrue(qwen.prompt.contains("<|fim_middle|>"))
     XCTAssertEqual(qwen.stop, ["<|fim_pad|>", "<|endoftext|>"])
+
+    var zetaConfiguration = ServiceConfiguration.defaults
+    zetaConfiguration.fimFormat = "zeta"
+    let zeta = BenchmarkRequestFactory.make(
+      configuration: zetaConfiguration,
+      marker: marker
+    )
+    XCTAssertTrue(zeta.prompt.hasPrefix("<[fim-suffix]>"))
+    XCTAssertTrue(zeta.prompt.contains("<filename>reticle_benchmark.ts"))
+    XCTAssertTrue(zeta.prompt.contains("<|marker_1|>"))
+    XCTAssertTrue(zeta.prompt.contains("<|user_cursor|>"))
+    XCTAssertTrue(zeta.prompt.contains("<|marker_2|>"))
+    XCTAssertEqual(zeta.suffix, "")
   }
 
   func testBenchmarkResultsCopyAsTabSeparatedValues() {
@@ -276,12 +289,13 @@ final class ReticleMLXTests: XCTestCase {
     XCTAssertEqual(ModelPreset.zeta2Point1.model, "slxnxl/zeta-2.1-mlx-4bit")
     XCTAssertEqual(ModelPreset.zeta2Point1.runtime, .mlxLM)
     XCTAssertEqual(ModelPreset.zeta2Point1.minimumMemoryGB, 16)
-    XCTAssertFalse(ModelPreset.zeta2Point1.supportsInlineCompletion)
+    XCTAssertEqual(ModelPreset.zeta2Point1.fimFormat, "zeta")
+    XCTAssertTrue(ModelPreset.zeta2Point1.supportsInlineCompletion)
     XCTAssertEqual(
       ModelPreset.zeta2Point1.upstreamURL?.absoluteString,
       "https://huggingface.co/zed-industries/zeta-2.1"
     )
-    XCTAssertFalse(ModelPreset.inlineCompletionPresets.contains(ModelPreset.zeta2Point1))
+    XCTAssertTrue(ModelPreset.inlineCompletionPresets.contains(ModelPreset.zeta2Point1))
   }
 
   func testZeta7BRemainsValidatedFIMOption() {
@@ -295,7 +309,7 @@ final class ReticleMLXTests: XCTestCase {
 
   func testSuggestedCatalogCoversSpeedBalanceQualityAndLargeModels() {
     XCTAssertEqual(ModelPreset.suggested.count, 7)
-    XCTAssertEqual(ModelPreset.inlineCompletionPresets.count, 6)
+    XCTAssertEqual(ModelPreset.inlineCompletionPresets.count, 7)
     XCTAssertEqual(ModelPreset.suggested.first, ModelPreset.seedCoder)
     XCTAssertTrue(ModelPreset.suggested.first?.isRecommended == true)
     XCTAssertTrue(ModelPreset.suggested.dropFirst().allSatisfy { !$0.isRecommended })
@@ -308,6 +322,32 @@ final class ReticleMLXTests: XCTestCase {
     )
     XCTAssertEqual(ModelPreset.codestral22B.fimFormat, "codestral")
     XCTAssertGreaterThan(ModelPreset.codestral22B.downloadSizeBytes, 10_000_000_000)
+  }
+
+  func testEverySuggestedModelHasAnOfficialModelCard() {
+    XCTAssertEqual(
+      Dictionary(
+        uniqueKeysWithValues: ModelPreset.suggested.map {
+          ($0.id, $0.upstreamURL!.absoluteString)
+        }
+      ),
+      [
+        ModelPreset.seedCoder.id:
+          "https://huggingface.co/ByteDance-Seed/Seed-Coder-8B-Base",
+        ModelPreset.zeta2Point1.id:
+          "https://huggingface.co/zed-industries/zeta-2.1",
+        ModelPreset.zeta7B.id:
+          "https://huggingface.co/zed-industries/zeta",
+        ModelPreset.qwenCoder1Point5B.id:
+          "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B",
+        ModelPreset.qwenCoder3B.id:
+          "https://huggingface.co/Qwen/Qwen2.5-Coder-3B",
+        ModelPreset.qwen35MTPLX.id:
+          "https://huggingface.co/Youssofal/Qwen3.5-9B-MTPLX-Optimized-Speed",
+        ModelPreset.codestral22B.id:
+          "https://huggingface.co/mistralai/Codestral-22B-v0.1",
+      ]
+    )
   }
 
   func testMTPLXDownloadOutputParserReadsNativeProgressJSON() {

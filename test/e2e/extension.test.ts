@@ -226,7 +226,8 @@ suite("Reticle extension host", () => {
     const fimFormat =
       requestedFimFormat === "codestral" ||
       requestedFimFormat === "seed" ||
-      requestedFimFormat === "qwen"
+      requestedFimFormat === "qwen" ||
+      requestedFimFormat === "zeta"
         ? requestedFimFormat
         : "openai";
     const liveSettings = {
