@@ -2,6 +2,15 @@
 
 All notable changes to Reticle are documented here.
 
+## 0.16.1
+
+- Name the selected model while its service is starting and replace the
+  ambiguous dotted-circle state icon with distinct checking and startup icons.
+- Populate the benchmark picker from downloaded completion models only, while
+  keeping downloaded Zeta 2.1 available for ordinary inline FIM.
+- Double the default Activity pane and settings-window heights while preserving
+  the draggable split.
+
 ## 0.16.0
 
 - Make Zeta 2.1 selectable as a regular VS Code inline-completion model through

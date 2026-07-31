@@ -7,6 +7,12 @@ final class ReticleMLXTests: XCTestCase {
     XCTAssertEqual(ServiceState.healthy.title, "Model running")
   }
 
+  func testStartingStateNamesTheModelAndAvoidsTheDottedWheel() {
+    XCTAssertEqual(ServiceState.starting.title(modelName: "Zeta 2.1"), "Starting Zeta 2.1")
+    XCTAssertEqual(ServiceState.starting.symbolName, "hourglass")
+    XCTAssertEqual(ServiceState.checking.symbolName, "magnifyingglass")
+  }
+
   func testServiceStateSeparatesStartingFromUnhealthy() {
     let startedAt = Date(timeIntervalSince1970: 1_000)
     var resolver = ServiceStateResolver(startupGraceInterval: 90)
@@ -241,7 +247,8 @@ final class ReticleMLXTests: XCTestCase {
   }
 
   func testActivityPaneDefaultsToTwiceItsPreviousHeight() {
-    XCTAssertEqual(SettingsView.activityDefaultHeight, 240)
+    XCTAssertEqual(SettingsView.activityDefaultHeight, 480)
+    XCTAssertEqual(SettingsView.windowIdealHeight, 960)
   }
 
   func testSparkleRequiresHTTPSFeedAndPublicKey() {
@@ -296,6 +303,26 @@ final class ReticleMLXTests: XCTestCase {
       "https://huggingface.co/zed-industries/zeta-2.1"
     )
     XCTAssertTrue(ModelPreset.inlineCompletionPresets.contains(ModelPreset.zeta2Point1))
+  }
+
+  func testBenchmarkCatalogIncludesOnlyDownloadedFIMModels() {
+    let downloaded = ModelPreset.downloadedInlineCompletionPresets(
+      in: [
+        ModelPreset.zeta2Point1.id,
+        ModelPreset.qwenCoder1Point5B.id,
+        ModelPreset.codestral22B.id,
+      ]
+    )
+
+    XCTAssertEqual(
+      downloaded,
+      [
+        ModelPreset.zeta2Point1,
+        ModelPreset.qwenCoder1Point5B,
+        ModelPreset.codestral22B,
+      ]
+    )
+    XCTAssertFalse(downloaded.contains(ModelPreset.seedCoder))
   }
 
   func testZeta7BRemainsValidatedFIMOption() {

@@ -38,7 +38,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
-  static let activityDefaultHeight: CGFloat = 240
+  static let activityDefaultHeight: CGFloat = 480
+  static let windowIdealHeight: CGFloat = 960
 
   @ObservedObject var controller: ServiceController
   @ObservedObject private var downloads: ModelDownloadController
@@ -47,7 +48,7 @@ struct SettingsView: View {
   @State private var selectedSection = SettingsSection.defaultSection
   @State private var selectedPresetID = ModelPreset.seedCoder.id
   @State private var loadingPresetID: String?
-  @State private var benchmarkPresetID = ModelPreset.seedCoder.id
+  @State private var benchmarkPresetID = ""
   @State private var model = ServiceConfiguration.defaults.model
   @State private var requestModel = ServiceConfiguration.defaults.requestModel
   @State private var fimFormat = ServiceConfiguration.defaults.fimFormat
@@ -87,7 +88,7 @@ struct SettingsView: View {
       idealWidth: 980,
       maxWidth: .infinity,
       minHeight: 520,
-      idealHeight: 720,
+      idealHeight: Self.windowIdealHeight,
       maxHeight: .infinity
     )
     .onAppear {
@@ -95,7 +96,11 @@ struct SettingsView: View {
       Task {
         await controller.refresh()
         await controller.refreshModelDownloads()
+        synchronizeBenchmarkSelection()
       }
+    }
+    .onChange(of: downloads.downloadedModelIDs) { _ in
+      synchronizeBenchmarkSelection()
     }
   }
 
@@ -172,7 +177,7 @@ struct SettingsView: View {
           .foregroundStyle(.secondary)
       }
       Spacer()
-      Label(controller.state.title, systemImage: controller.state.symbolName)
+      Label(controller.stateTitle, systemImage: controller.state.symbolName)
         .foregroundStyle(
           controller.state == .healthy ? Color.green
             : controller.state == .unhealthy ? Color.orange : Color.secondary
@@ -375,9 +380,14 @@ struct SettingsView: View {
 
         GroupBox("Run Benchmark") {
           VStack(alignment: .leading, spacing: 10) {
-            Picker("Model", selection: $benchmarkPresetID) {
-              ForEach(ModelPreset.inlineCompletionPresets) { preset in
-                Text(preset.name).tag(preset.id)
+            if downloadedBenchmarkPresets.isEmpty {
+              Text("No downloaded benchmark models found.")
+                .foregroundStyle(.secondary)
+            } else {
+              Picker("Downloaded model", selection: $benchmarkPresetID) {
+                ForEach(downloadedBenchmarkPresets) { preset in
+                  Text(preset.name).tag(preset.id)
+                }
               }
             }
 
@@ -388,7 +398,6 @@ struct SettingsView: View {
               .buttonStyle(.borderedProminent)
               .disabled(
                 benchmarks.isRunning || controller.isBusy || selectedBenchmarkPreset == nil
-                  || !downloads.isDownloadedPresetOrCustom(benchmarkPresetID)
               )
 
               Button("Copy Results") {
@@ -588,7 +597,18 @@ struct SettingsView: View {
   }
 
   private var selectedBenchmarkPreset: ModelPreset? {
-    ModelPreset.inlineCompletionPresets.first { $0.id == benchmarkPresetID }
+    downloadedBenchmarkPresets.first { $0.id == benchmarkPresetID }
+  }
+
+  private var downloadedBenchmarkPresets: [ModelPreset] {
+    ModelPreset.downloadedInlineCompletionPresets(in: downloads.downloadedModelIDs)
+  }
+
+  private func synchronizeBenchmarkSelection() {
+    guard !downloadedBenchmarkPresets.contains(where: { $0.id == benchmarkPresetID }) else {
+      return
+    }
+    benchmarkPresetID = downloadedBenchmarkPresets.first?.id ?? ""
   }
 
   private func runBenchmark() async {

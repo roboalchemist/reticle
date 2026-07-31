@@ -23,10 +23,15 @@ enum ServiceState: Equatable {
     }
   }
 
+  func title(modelName: String) -> String {
+    self == .starting ? "Starting \(modelName)" : title
+  }
+
   var symbolName: String {
     switch self {
     case .healthy: "checkmark.circle.fill"
-    case .checking, .starting: "circle.dotted"
+    case .checking: "magnifyingglass"
+    case .starting: "hourglass"
     case .stopped, .notInstalled: "circle"
     case .unhealthy: "exclamationmark.triangle.fill"
     case .failed: "exclamationmark.circle"
@@ -117,6 +122,16 @@ final class ServiceController: ObservableObject {
   private let defaults: UserDefaults
   private var isRefreshing = false
   private var stateResolver = ServiceStateResolver()
+
+  var stateTitle: String {
+    let configuration = ServiceConfiguration.load(from: defaults)
+    return state.title(
+      modelName: ModelPreset.displayName(
+        for: configuration.model,
+        runtime: configuration.runtime
+      )
+    )
+  }
 
   init(
     mlxRunner: CommandRunner? = CommandRunner.resolveExecutable().map(CommandRunner.init),
@@ -360,7 +375,10 @@ final class ServiceController: ObservableObject {
       stateResolver.resetStartupObservation()
       state = .starting
     }
-    output = "\(command.capitalized) in progress…"
+    output =
+      state == .starting
+      ? "\(stateTitle)…"
+      : "\(command.capitalized) in progress…"
     let result = await runner.run(command, environment: environment)
     output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
     isBusy = false

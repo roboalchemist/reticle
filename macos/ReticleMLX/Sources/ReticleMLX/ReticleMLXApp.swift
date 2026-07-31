@@ -51,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   func menuNeedsUpdate(_ menu: NSMenu) {
     menu.removeAllItems()
     menu.addItem(disabledItem("Reticle MLX", bold: true))
-    menu.addItem(disabledItem("Status: \(controller.state.title)"))
+    menu.addItem(disabledItem("Status: \(controller.stateTitle)"))
     menu.addItem(disabledItem(shortModelName(controller.installedModel)))
     menu.addItem(.separator())
 
@@ -105,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       let visibleFrame =
         NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1_100, height: 800)
       let width = min(980, max(720, visibleFrame.width - 80))
-      let height = min(760, max(520, visibleFrame.height - 80))
+      let height = min(SettingsView.windowIdealHeight, max(520, visibleFrame.height - 80))
       let window = NSWindow(
         contentRect: NSRect(x: 0, y: 0, width: width, height: height),
         styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -167,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private func updateStatusItem(for state: ServiceState) {
     guard let button = statusItem?.button else { return }
 
-    let description = "Reticle MLX: \(state.title)"
+    let description = "Reticle MLX: \(controller.stateTitle)"
     if let iconURL = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "png"),
       let icon = NSImage(contentsOf: iconURL)
     {

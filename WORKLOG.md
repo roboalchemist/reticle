@@ -1,5 +1,24 @@
 # Worklog
 
+## 2026-07-31 — Download-aware benchmarks and settings-state clarity
+
+- The installed 0.15.1 app still carried Zeta 2.1's preview-only
+  `supportsInlineCompletion = false` flag even though the 0.16.0 source and
+  release had landed the regular-FIM adapter. Verified that the 4-bit Zeta 2.1
+  model was already complete in the Hugging Face cache; the next installed
+  release must be checked before diagnosing the model download itself.
+- Replace the static benchmark catalog with the live set of downloaded built-in
+  FIM models. Keep the selected benchmark valid as asynchronous download
+  discovery adds or removes cards, and show an explicit empty state when none
+  are present.
+- Render startup as `Starting <model>` using the saved service configuration,
+  including in the settings header, menu, activity output, tooltip, and
+  accessibility description. Replace the ambiguous dotted-circle SF Symbol
+  with a magnifying glass for checks and an hourglass for startup.
+- Increase the Activity pane's default ideal height from 240 to 480 points and
+  the settings window's ideal height from 720 to 960 points so the draggable
+  split has room to honor the larger default.
+
 ## 2026-07-30 — Zeta 2.1 regular-FIM adapter and complete source links
 
 - Confirmed from Zed Industries' official model card that Zeta 2.1 requires

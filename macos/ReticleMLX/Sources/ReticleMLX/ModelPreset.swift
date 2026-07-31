@@ -212,6 +212,18 @@ struct ModelPreset: Identifiable, Hashable {
   static let all = suggested + [custom]
   static let inlineCompletionPresets = suggested.filter(\.supportsInlineCompletion)
 
+  static func downloadedInlineCompletionPresets(in modelIDs: Set<String>) -> [ModelPreset] {
+    inlineCompletionPresets.filter { modelIDs.contains($0.id) }
+  }
+
+  static func displayName(for model: String, runtime: ModelRuntime) -> String {
+    if let preset = suggested.first(where: { $0.model == model && $0.runtime == runtime }) {
+      return preset.name
+    }
+    let name = model.split(separator: "/").last.map(String.init) ?? model
+    return name.isEmpty ? "model" : name
+  }
+
   var upstreamURL: URL? {
     let address: String
     switch id {
